@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -11,7 +12,6 @@ public static class BouquetCapture
     private const int DefaultSize = 1080;
     private const int AntiAliasingSamples = 4;
     private const int DepthBits = 24;
-    private const float PaletteMax = 3.0f;
 
     public static void Run()
     {
@@ -25,22 +25,30 @@ public static class BouquetCapture
 
         int frameCount = GetIntArgument("-frames", DefaultFrames);
         int size = GetIntArgument("-size", DefaultSize);
-        bool sweep = GetIntArgument("-sweep", 0) != 0;
+        float yaw = GetFloatArgument("-yaw", 0.0f);
+        float pitch = GetFloatArgument("-pitch", 12.0f);
+        bool spin = GetIntArgument("-spin", 0) != 0;
 
         Directory.CreateDirectory(outputDirectory);
         EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
         Camera camera = Object.FindFirstObjectByType<Camera>();
-        MeshRenderer renderer = Object.FindFirstObjectByType<MeshRenderer>();
-        if (camera == null || renderer == null)
+        BouquetBuilder builder = Object.FindFirstObjectByType<BouquetBuilder>();
+        if (camera == null || builder == null)
         {
-            Debug.LogError("BOUQUET_CAPTURE: scene is missing the camera or the quad");
+            Debug.LogError("BOUQUET_CAPTURE: scene is missing the camera or the bouquet");
             EditorApplication.Exit(1);
             return;
         }
 
-        Material material = renderer.sharedMaterial;
-        ApplyOverrides(material, GetArgument("-overrides"));
+        if (!ApplyOverrides(builder, GetArgument("-overrides")))
+        {
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        builder.Rebuild();
+        camera.backgroundColor = BouquetPalette.Preset(builder.palette).background;
 
         RenderTexture target = new RenderTexture(size, size, DepthBits, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
         target.antiAliasing = AntiAliasingSamples;
@@ -50,12 +58,8 @@ public static class BouquetCapture
 
         for (int i = 0; i < frameCount; i++)
         {
-            if (sweep && frameCount > 1)
-            {
-                float t = i / (float)(frameCount - 1);
-                material.SetFloat("_Palette", t * PaletteMax);
-                material.SetFloat("_Seed", Mathf.Floor(t * 8.0f));
-            }
+            float angle = spin && frameCount > 1 ? yaw + 360.0f * i / frameCount : yaw;
+            SceneBootstrap.PlaceCamera(camera, angle, pitch);
 
             camera.Render();
             Graphics.Blit(target, resolved);
@@ -74,11 +78,13 @@ public static class BouquetCapture
         EditorApplication.Exit(0);
     }
 
-    private static void ApplyOverrides(Material material, string overrides)
+    // settings carry a dozen knobs and iterating on them from the CLI is the whole
+    // workflow, so the names are resolved against the fields instead of listed twice
+    private static bool ApplyOverrides(BouquetBuilder builder, string overrides)
     {
         if (string.IsNullOrEmpty(overrides))
         {
-            return;
+            return true;
         }
 
         foreach (string entry in overrides.Split(','))
@@ -86,28 +92,57 @@ public static class BouquetCapture
             string[] parts = entry.Split('=');
             if (parts.Length != 2)
             {
-                Debug.LogError($"BOUQUET_CAPTURE: malformed override '{entry}', expected _Name=value");
-                EditorApplication.Exit(1);
-                return;
+                Debug.LogError($"BOUQUET_CAPTURE: malformed override '{entry}', expected name=value");
+                return false;
             }
 
             string name = parts[0].Trim();
-            if (!material.HasFloat(name))
+            string raw = parts[1].Trim();
+
+            if (name == "palette")
             {
-                Debug.LogError($"BOUQUET_CAPTURE: material has no float property '{name}'");
-                EditorApplication.Exit(1);
-                return;
+                builder.palette = int.Parse(raw, CultureInfo.InvariantCulture);
+                Debug.Log($"BOUQUET_CAPTURE: override palette={raw}");
+                continue;
             }
 
-            material.SetFloat(name, float.Parse(parts[1].Trim(), CultureInfo.InvariantCulture));
-            Debug.Log($"BOUQUET_CAPTURE: override {name}={parts[1].Trim()}");
+            FieldInfo field = typeof(BouquetSettings).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            if (field == null)
+            {
+                Debug.LogError($"BOUQUET_CAPTURE: BouquetSettings has no field '{name}'");
+                return false;
+            }
+
+            if (field.FieldType == typeof(int))
+            {
+                field.SetValue(builder.settings, int.Parse(raw, CultureInfo.InvariantCulture));
+            }
+            else if (field.FieldType == typeof(float))
+            {
+                field.SetValue(builder.settings, float.Parse(raw, CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                Debug.LogError($"BOUQUET_CAPTURE: field '{name}' is {field.FieldType.Name}, only int and float are supported");
+                return false;
+            }
+
+            Debug.Log($"BOUQUET_CAPTURE: override {name}={raw}");
         }
+
+        return true;
     }
 
     private static int GetIntArgument(string name, int fallback)
     {
         string raw = GetArgument(name);
         return string.IsNullOrEmpty(raw) ? fallback : int.Parse(raw, CultureInfo.InvariantCulture);
+    }
+
+    private static float GetFloatArgument(string name, float fallback)
+    {
+        string raw = GetArgument(name);
+        return string.IsNullOrEmpty(raw) ? fallback : float.Parse(raw, CultureInfo.InvariantCulture);
     }
 
     private static string GetArgument(string name)

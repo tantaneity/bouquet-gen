@@ -7,7 +7,7 @@ public static class ShaderCompileCheck
 {
     private static readonly string[] ShaderPaths =
     {
-        "Assets/Shaders/Bouquet.shader"
+        "Assets/Shaders/BouquetFlat.shader"
     };
 
     public static void Run()
