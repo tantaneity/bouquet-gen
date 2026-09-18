@@ -34,9 +34,16 @@ public static class BouquetCapture
 
         Camera camera = Object.FindFirstObjectByType<Camera>();
         BouquetBuilder builder = Object.FindFirstObjectByType<BouquetBuilder>();
-        if (camera == null || builder == null)
+        BouquetController controller = Object.FindFirstObjectByType<BouquetController>();
+        if (camera == null || builder == null || controller == null)
         {
-            Debug.LogError("BOUQUET_CAPTURE: scene is missing the camera or the bouquet");
+            Debug.LogError("BOUQUET_CAPTURE: scene is missing the camera, the bouquet or the controller");
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        if (!ApplyDials(controller, GetArgument("-dials")))
+        {
             EditorApplication.Exit(1);
             return;
         }
@@ -48,6 +55,12 @@ public static class BouquetCapture
         }
 
         builder.Rebuild();
+        controller.RebuildDials();
+
+        if (controller.dialRenderer != null)
+        {
+            controller.dialRenderer.enabled = GetIntArgument("-hideDials", 0) == 0;
+        }
         camera.backgroundColor = BouquetPalette.Preset(builder.palette).background;
 
         RenderTexture target = new RenderTexture(size, size, DepthBits, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
@@ -58,8 +71,10 @@ public static class BouquetCapture
 
         for (int i = 0; i < frameCount; i++)
         {
-            float angle = spin && frameCount > 1 ? yaw + 360.0f * i / frameCount : yaw;
-            SceneBootstrap.PlaceCamera(camera, angle, pitch);
+            controller.yaw = spin && frameCount > 1 ? yaw + 360.0f * i / frameCount : yaw;
+            controller.pitch = pitch;
+            controller.PlaceCamera();
+            controller.RebuildDials();
 
             camera.Render();
             Graphics.Blit(target, resolved);
@@ -76,6 +91,32 @@ public static class BouquetCapture
         camera.targetTexture = null;
         Debug.Log($"BOUQUET_CAPTURE: {frameCount} frames at {size}px written to {outputDirectory}");
         EditorApplication.Exit(0);
+    }
+
+    // dial values run 0..1 along their track; passing them straight through is how
+    // the gizmo gets verified headlessly, where there is no mouse to drag with
+    private static bool ApplyDials(BouquetController controller, string values)
+    {
+        if (string.IsNullOrEmpty(values))
+        {
+            return true;
+        }
+
+        string[] parts = values.Split(',');
+        if (parts.Length != controller.dials.Length)
+        {
+            Debug.LogError($"BOUQUET_CAPTURE: -dials needs {controller.dials.Length} values, got {parts.Length}");
+            return false;
+        }
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            controller.dials[i].value = Mathf.Clamp01(float.Parse(parts[i].Trim(), CultureInfo.InvariantCulture));
+        }
+
+        BouquetDialSet.Apply(controller.dials, controller.builder);
+        Debug.Log($"BOUQUET_CAPTURE: dials {values}");
+        return true;
     }
 
     // settings carry a dozen knobs and iterating on them from the CLI is the whole

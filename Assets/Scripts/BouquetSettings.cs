@@ -22,8 +22,8 @@ public sealed class BouquetSettings
 
     // widths are fractions of screen height, so a stroke stays the same weight
     // at any distance and any capture resolution
-    [Range(0.001f, 0.02f)] public float stemWidth = 0.0028f;
-    [Range(0.001f, 0.02f)] public float lineWidth = 0.0017f;
+    [Range(0.001f, 0.02f)] public float stemWidth = 0.0036f;
+    [Range(0.001f, 0.02f)] public float lineWidth = 0.0019f;
 }
 
 [Serializable]

@@ -1,26 +1,34 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 public static class SceneBootstrap
 {
     private const string ScenePath = "Assets/Scenes/Bouquet.unity";
     private const string ShaderPath = "Assets/Shaders/BouquetFlat.shader";
-    private const string MaterialPath = "Assets/Materials/BouquetFlat.mat";
+    private const string BouquetMaterialPath = "Assets/Materials/BouquetFlat.mat";
+    private const string DialMaterialPath = "Assets/Materials/BouquetDials.mat";
 
-    public const float OrbitRadius = 3.9f;
-    public const float FieldOfView = 30.0f;
-    public static readonly Vector3 OrbitTarget = new Vector3(0.0f, 0.18f, 0.0f);
+    private const float FieldOfView = 30.0f;
+    private const float DialLineWidth = 0.0016f;
+
+    private static readonly Color DialInk = new Color(0.62f, 0.65f, 0.67f, 1.0f);
 
     public static void Run()
     {
-        Material material = CreateMaterial();
-        if (material == null)
+        Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
+        if (shader == null)
         {
+            Debug.LogError($"SCENE_BOOTSTRAP: shader not found at {ShaderPath}");
             EditorApplication.Exit(1);
             return;
         }
+
+        BouquetPalette colors = BouquetPalette.Preset(2);
+        Material bouquetMaterial = LoadOrCreate(shader, BouquetMaterialPath, colors.ink, 0.0019f);
+        Material dialMaterial = LoadOrCreate(shader, DialMaterialPath, DialInk, DialLineWidth);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -32,53 +40,56 @@ public static class SceneBootstrap
         camera.nearClipPlane = 0.05f;
         camera.farClipPlane = 50.0f;
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = BouquetPalette.Preset(2).background;
+        camera.backgroundColor = colors.background;
 
         UniversalAdditionalCameraData cameraData = camera.GetUniversalAdditionalCameraData();
         cameraData.renderPostProcessing = false;
         cameraData.renderShadows = false;
 
-        PlaceCamera(camera, 0.0f, 12.0f);
+        GameObject bouquet = NewRenderer("Bouquet", bouquetMaterial);
+        bouquet.AddComponent<BouquetBuilder>().Rebuild();
 
-        GameObject bouquet = new GameObject("Bouquet", typeof(MeshFilter), typeof(MeshRenderer), typeof(BouquetBuilder));
-        MeshRenderer renderer = bouquet.GetComponent<MeshRenderer>();
-        renderer.sharedMaterial = material;
-        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        renderer.receiveShadows = false;
-        bouquet.GetComponent<BouquetBuilder>().Rebuild();
+        GameObject dials = NewRenderer("Dials", dialMaterial);
+
+        BouquetController controller = cameraObject.AddComponent<BouquetController>();
+        controller.builder = bouquet.GetComponent<BouquetBuilder>();
+        controller.dialMesh = dials.GetComponent<MeshFilter>();
+        controller.dialRenderer = dials.GetComponent<MeshRenderer>();
+        controller.ApplyDials();
+        controller.PlaceCamera();
 
         bool saved = EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"SCENE_BOOTSTRAP: saved={saved} path={ScenePath} vertices={bouquet.GetComponent<MeshFilter>().sharedMesh.vertexCount}");
+        int bouquetVertices = bouquet.GetComponent<MeshFilter>().sharedMesh.vertexCount;
+        int dialVertices = dials.GetComponent<MeshFilter>().sharedMesh.vertexCount;
+        Debug.Log($"SCENE_BOOTSTRAP: saved={saved} bouquetVertices={bouquetVertices} dialVertices={dialVertices}");
         EditorApplication.Exit(saved ? 0 : 1);
     }
 
-    public static void PlaceCamera(Camera camera, float yawDegrees, float pitchDegrees)
+    private static GameObject NewRenderer(string name, Material material)
     {
-        Quaternion orbit = Quaternion.Euler(pitchDegrees, yawDegrees, 0.0f);
-        camera.transform.position = OrbitTarget + orbit * (Vector3.back * OrbitRadius);
-        camera.transform.rotation = Quaternion.LookRotation(OrbitTarget - camera.transform.position, Vector3.up);
+        GameObject target = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+        MeshRenderer renderer = target.GetComponent<MeshRenderer>();
+        renderer.sharedMaterial = material;
+        renderer.shadowCastingMode = ShadowCastingMode.Off;
+        renderer.receiveShadows = false;
+        return target;
     }
 
-    private static Material CreateMaterial()
+    private static Material LoadOrCreate(Shader shader, string path, Color ink, float lineWidth)
     {
-        Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
-        if (shader == null)
-        {
-            Debug.LogError($"SCENE_BOOTSTRAP: shader not found at {ShaderPath}");
-            return null;
-        }
-
-        Material existing = AssetDatabase.LoadAssetAtPath<Material>(MaterialPath);
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (existing != null)
         {
             return existing;
         }
 
         Material material = new Material(shader);
-        AssetDatabase.CreateAsset(material, MaterialPath);
+        material.SetColor("_InkColor", ink);
+        material.SetFloat("_LineWidth", lineWidth);
+        AssetDatabase.CreateAsset(material, path);
         return material;
     }
 }

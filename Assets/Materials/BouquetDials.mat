@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: BouquetFlat
+  m_Name: BouquetDials
   m_Shader: {fileID: 4800000, guid: d89f469f5387e47208628381f45d996f, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -25,8 +25,8 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _LineWidth: 0.0019
+    - _LineWidth: 0.0016
     m_Colors:
-    - _InkColor: {r: 0.106, g: 0.118, b: 0.11, a: 1}
+    - _InkColor: {r: 0.62, g: 0.65, b: 0.67, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

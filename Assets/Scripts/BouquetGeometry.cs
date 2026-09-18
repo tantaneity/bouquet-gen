@@ -74,22 +74,22 @@ public static class BouquetGeometry
     private const int StemSteps = 10;
     private const int DiscSteps = 14;
     private const int BandSteps = 20;
-    private const int LavenderBeads = 13;
-    private const int GypsophilaArms = 9;
+    private const int LavenderBeads = 22;
+    private const int GypsophilaArms = 13;
     private const int EucalyptusPairs = 4;
-    private const int FernLeaflets = 6;
+    private const int FernLeaflets = 14;
     private const int AnemoneStamens = 9;
 
     private const float ControlPointReach = 0.55f;
     private const float BundleSpread = 0.80f;
     private const float HighlightStep = 0.06f;
-    private const float PetalCup = 0.34f;
-    private const float CutDrop = 1.1f;
+    private const float PetalCup = 0.22f;
+    private const float CutDrop = 0.85f;
     private const float HeadLeanRise = 0.45f;
-    private const float PetalSpiral = 0.022f;
+    private const float PetalSpiral = 0.016f;
 
-    private static readonly float[] RingTilt = { 1.00f, 0.66f, 0.32f };
-    private static readonly float[] RingLength = { 1.12f, 0.86f, 0.60f };
+    private static readonly float[] RingTilt = { 1.00f, 0.72f, 0.46f };
+    private static readonly float[] RingLength = { 1.12f, 0.86f, 0.64f };
     private static readonly float[] RingHead = { 0.84f, 1.00f, 1.18f };
     private static readonly float[] RingAnchor = { 1.00f, 0.62f, 0.26f };
     private static readonly float[] RingPhase = { 0.0f, 0.7f, 1.9f };
@@ -192,6 +192,11 @@ public static class BouquetGeometry
 
     private static void AddHead(MeshBuffer mesh, Species species, Matrix4x4 frame, float size, Color bloom, BouquetPalette palette, BouquetSettings settings)
     {
+        if (species <= Species.Dahlia)
+        {
+            AddDisc(mesh, frame, Vector3.back * size * 0.04f, size * 0.46f, Color.Lerp(bloom, palette.leaf, 0.55f));
+        }
+
         switch (species)
         {
             case Species.Rose:
@@ -320,14 +325,31 @@ public static class BouquetGeometry
     // indistinguishable, and the ribbon keeps its width constant in pixels
     private static void AddCurveRibbon(MeshBuffer mesh, Vector3 a, Vector3 b, Vector3 c, Color fill, float width)
     {
-        int start = mesh.VertexCount;
-
+        Vector3[] points = new Vector3[StemSteps + 1];
         for (int s = 0; s <= StemSteps; s++)
         {
             float t = s / (float)StemSteps;
-            Vector3 point = Vector3.Lerp(Vector3.Lerp(a, b, t), Vector3.Lerp(b, c, t), t);
-            Vector3 next = Vector3.Lerp(Vector3.Lerp(a, b, t + 0.01f), Vector3.Lerp(b, c, t + 0.01f), t + 0.01f);
-            Vector3 tangent = Vector3.Normalize(next - point);
+            points[s] = Vector3.Lerp(Vector3.Lerp(a, b, t), Vector3.Lerp(b, c, t), t);
+        }
+
+        AddRibbon(mesh, points, fill, width);
+    }
+
+    public static void AddRibbon(MeshBuffer mesh, IReadOnlyList<Vector3> points, Color fill, float width)
+    {
+        if (points.Count < 2)
+        {
+            return;
+        }
+
+        int start = mesh.VertexCount;
+
+        for (int s = 0; s < points.Count; s++)
+        {
+            Vector3 point = points[s];
+            Vector3 ahead = points[Mathf.Min(s + 1, points.Count - 1)];
+            Vector3 behind = points[Mathf.Max(s - 1, 0)];
+            Vector3 tangent = Vector3.Normalize(ahead - behind);
 
             mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, -1.0f), fill, StrokeKind.Stem, width);
             mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, 1.0f), fill, StrokeKind.Stem, width);
@@ -340,10 +362,15 @@ public static class BouquetGeometry
         }
     }
 
+    public static void AddHandle(MeshBuffer mesh, Vector3 position, float radius, Color fill)
+    {
+        AddBillboardDisc(mesh, position, radius, fill);
+    }
+
     private static void AddLavender(MeshBuffer mesh, Matrix4x4 frame, float size, Color bloom, BouquetSettings settings)
     {
         float spikeLength = size * 2.9f;
-        float beadRadius = size * 0.105f;
+        float beadRadius = size * 0.082f;
 
         AddCurveRibbon(mesh, frame.MultiplyPoint3x4(Vector3.zero),
             frame.MultiplyPoint3x4(new Vector3(0.0f, 0.0f, spikeLength * 0.2f)),
@@ -353,15 +380,16 @@ public static class BouquetGeometry
         {
             float t = i / (float)(LavenderBeads - 1);
             float turn = i * 2.39996f;
-            Vector3 local = new Vector3(Mathf.Cos(turn), Mathf.Sin(turn), 0.0f) * beadRadius * 0.55f;
-            local.z = spikeLength * (0.28f + 0.72f * t);
-            AddBillboardDisc(mesh, frame.MultiplyPoint3x4(local), beadRadius * (1.0f - 0.5f * t), bloom);
+            Vector3 local = new Vector3(Mathf.Cos(turn), Mathf.Sin(turn), 0.0f) * beadRadius * 0.85f;
+            local.z = spikeLength * (0.24f + 0.76f * t);
+            AddBillboardDisc(mesh, frame.MultiplyPoint3x4(local), beadRadius * (1.0f - 0.42f * t), bloom);
         }
     }
 
     private static void AddGypsophila(MeshBuffer mesh, Matrix4x4 frame, float size, BouquetPalette palette, BouquetSettings settings)
     {
         float reach = size * 1.9f;
+        Color hair = Color.Lerp(palette.ink, palette.background, 0.45f);
 
         for (int i = 0; i < GypsophilaArms; i++)
         {
@@ -372,13 +400,14 @@ public static class BouquetGeometry
 
             Vector3 worldBase = frame.MultiplyPoint3x4(Vector3.zero);
             Vector3 worldTip = frame.MultiplyPoint3x4(tip);
-            AddCurveRibbon(mesh, worldBase, Vector3.Lerp(worldBase, worldTip, 0.5f), worldTip, palette.ink, settings.lineWidth * 0.3f);
+            AddCurveRibbon(mesh, worldBase, Vector3.Lerp(worldBase, worldTip, 0.5f), worldTip, hair, settings.lineWidth * 0.12f);
 
-            for (int d = 0; d < 3; d++)
+            for (int d = 0; d < 5; d++)
             {
-                float spin = d * 2.09f;
-                Vector3 dot = tip + new Vector3(Mathf.Cos(spin), Mathf.Sin(spin), 0.0f) * size * 0.11f;
-                AddBillboardDisc(mesh, frame.MultiplyPoint3x4(dot), size * 0.042f, palette.background);
+                float spin = d * 2.39996f;
+                float spill = size * 0.055f * (1.0f + d * 0.45f);
+                Vector3 dot = tip + new Vector3(Mathf.Cos(spin), Mathf.Sin(spin), 0.25f) * spill;
+                AddBillboardDisc(mesh, frame.MultiplyPoint3x4(dot), size * 0.034f, palette.background);
             }
         }
     }
@@ -415,15 +444,16 @@ public static class BouquetGeometry
 
         for (int i = 0; i < FernLeaflets; i++)
         {
-            float t = (i + 0.6f) / FernLeaflets;
-            float leafletLength = size * 0.50f * (1.0f - 0.45f * t);
+            float t = (i + 0.5f) / FernLeaflets;
+            float leafletLength = size * 0.46f * (1.0f - 0.55f * t);
+            float sweep = 0.72f + 0.30f * t;
 
             for (int side = -1; side <= 1; side += 2)
             {
                 Vector3 outward = new Vector3(side, 0.0f, 0.0f);
-                Vector3 local = outward * leafletLength * 0.5f + Vector3.forward * spineLength * t;
-                Matrix4x4 leafFrame = LeafFrame(frame, local, outward, 0.62f);
-                AddPetalRing(mesh, leafFrame, 1, leafletLength * 2.0f, 0.34f, 0.0f, 0.10f, palette.leaf, i * 0.0015f);
+                Vector3 local = outward * leafletLength * 0.42f + Vector3.forward * spineLength * (0.06f + 0.94f * t);
+                Matrix4x4 leafFrame = LeafFrame(frame, local, outward, sweep);
+                AddPetalRing(mesh, leafFrame, 1, leafletLength * 2.0f, 0.30f, 0.0f, 0.05f, palette.leaf, i * 0.0012f);
             }
         }
     }
