@@ -5,8 +5,8 @@ using UnityEngine;
 public sealed class BouquetSettings
 {
     [Range(0.0f, 1.0f)] public float density = 0.55f;
-    [Range(5.0f, 70.0f)] public float coneHalfAngle = 34.0f;
-    [Range(0.2f, 1.6f)] public float stemLength = 1.00f;
+    [Range(0.4f, 2.2f)] public float spreadGain = 1.28f;
+    [Range(0.2f, 1.6f)] public float stemLength = 1.02f;
     [Range(0, 64)] public int seed = 7;
 
     [Header("Composition")]
@@ -14,8 +14,8 @@ public sealed class BouquetSettings
     [Range(0.0f, 360.0f)] public float asymmetryAngle = 118.0f;
     [Range(0.0f, 0.6f)] public float faceFlatten = 0.26f;
     [Range(0.0f, 1.2f)] public float outwardCurve = 0.62f;
-    [Range(0.0f, 0.5f)] public float sideBend = 0.22f;
-    [Range(0.0f, 0.5f)] public float depthSpread = 0.34f;
+    [Range(0.0f, 0.5f)] public float sideBend = 0.30f;
+    [Range(0.0f, 0.5f)] public float depthSpread = 0.46f;
     [Range(0.0f, 120.0f)] public float bundleTwist = 54.0f;
 
     [Header("Tie")]

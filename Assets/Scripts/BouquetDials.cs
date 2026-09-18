@@ -141,10 +141,10 @@ public static class BouquetDialSet
         // density drives every quota plus how much the layers separate, so the
         // silhouette stays put while the bouquet actually fills in
         builder.settings.density = dials[1].value;
-        builder.settings.depthSpread = Mathf.Lerp(0.14f, 0.30f, dials[1].value);
+        builder.settings.depthSpread = Mathf.Lerp(0.34f, 0.58f, dials[1].value);
         builder.settings.colourVariation = Mathf.Lerp(0.18f, 0.30f, dials[1].value);
 
-        builder.settings.coneHalfAngle = Mathf.Lerp(16.0f, 44.0f, dials[2].value);
+        builder.settings.spreadGain = Mathf.Lerp(0.80f, 1.75f, dials[2].value);
         builder.settings.stemLength = Mathf.Lerp(0.74f, 1.24f, dials[3].value);
     }
 }

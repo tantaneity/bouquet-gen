@@ -24,10 +24,10 @@ public static class BouquetGeometry
     {
         public float azimuthCentre;
         public float azimuthSpread;
-        public float tiltLow;
-        public float tiltHigh;
-        public float lengthLow;
-        public float lengthHigh;
+        public float radiusLow;
+        public float radiusHigh;
+        public float heightLow;
+        public float heightHigh;
         public float scaleLow;
         public float scaleHigh;
         public float depth;
@@ -36,42 +36,39 @@ public static class BouquetGeometry
         public int countHigh;
     }
 
+    // tips are aimed at a place in the bouquet rather than derived from an angle and
+    // a length, so the shape is a decision instead of an outcome
     private static readonly Band[] Bands =
     {
-        //                      az centre  spread  tilt lo/hi   length lo/hi  scale lo/hi   depth  count lo/hi
-        new Band { azimuthCentre =   0.0f, azimuthSpread = 150.0f, tiltLow = 0.26f, tiltHigh = 0.58f, lengthLow = 0.44f, lengthHigh = 0.62f, scaleLow = 1.25f, scaleHigh = 1.70f, depth =  0.10f, stemWidth = 1.00f, countLow = 3, countHigh = 6 },
-        new Band { azimuthCentre =   0.0f, azimuthSpread = 280.0f, tiltLow = 0.46f, tiltHigh = 0.86f, lengthLow = 0.52f, lengthHigh = 0.74f, scaleLow = 0.85f, scaleHigh = 1.22f, depth =  0.02f, stemWidth = 0.92f, countLow = 6, countHigh = 10 },
-        new Band { azimuthCentre =   0.0f, azimuthSpread = 360.0f, tiltLow = 0.60f, tiltHigh = 1.15f, lengthLow = 0.52f, lengthHigh = 0.84f, scaleLow = 0.34f, scaleHigh = 0.60f, depth = -0.06f, stemWidth = 0.68f, countLow = 6, countHigh = 14 },
-        new Band { azimuthCentre = 180.0f, azimuthSpread = 230.0f, tiltLow = 0.45f, tiltHigh = 0.95f, lengthLow = 0.92f, lengthHigh = 1.22f, scaleLow = 0.55f, scaleHigh = 0.88f, depth = -0.12f, stemWidth = 0.62f, countLow = 4, countHigh = 8 },
-        new Band { azimuthCentre = 180.0f, azimuthSpread = 360.0f, tiltLow = 0.80f, tiltHigh = 1.18f, lengthLow = 0.78f, lengthHigh = 1.12f, scaleLow = 0.80f, scaleHigh = 1.25f, depth = -0.08f, stemWidth = 0.82f, countLow = 7, countHigh = 14 },
-        new Band { azimuthCentre =   0.0f, azimuthSpread = 160.0f, tiltLow = 0.40f, tiltHigh = 0.80f, lengthLow = 0.44f, lengthHigh = 0.74f, scaleLow = 0.85f, scaleHigh = 1.20f, depth =  0.17f, stemWidth = 0.90f, countLow = 2, countHigh = 4 }
+        //                          az centre  spread   radius lo/hi   height lo/hi   scale lo/hi    depth  stem   count
+        new Band { azimuthCentre =   0.0f, azimuthSpread =   0.0f, radiusLow = 0.00f, radiusHigh = 0.00f, heightLow = 0.00f, heightHigh = 0.00f, scaleLow = 1.30f, scaleHigh = 1.75f, depth =  0.00f, stemWidth = 1.00f, countLow = 3, countHigh = 5 },
+        new Band { azimuthCentre =   0.0f, azimuthSpread = 300.0f, radiusLow = 0.30f, radiusHigh = 0.56f, heightLow = 0.34f, heightHigh = 0.62f, scaleLow = 0.72f, scaleHigh = 1.02f, depth = -0.02f, stemWidth = 0.88f, countLow = 5, countHigh = 8 },
+        new Band { azimuthCentre =   0.0f, azimuthSpread = 360.0f, radiusLow = 0.10f, radiusHigh = 0.40f, heightLow = 0.20f, heightHigh = 0.50f, scaleLow = 0.30f, scaleHigh = 0.50f, depth = -0.30f, stemWidth = 0.58f, countLow = 6, countHigh = 12 },
+        new Band { azimuthCentre = 180.0f, azimuthSpread = 190.0f, radiusLow = 0.26f, radiusHigh = 0.58f, heightLow = 0.72f, heightHigh = 1.06f, scaleLow = 0.52f, scaleHigh = 0.82f, depth = -0.46f, stemWidth = 0.52f, countLow = 3, countHigh = 5 },
+        new Band { azimuthCentre = 180.0f, azimuthSpread = 360.0f, radiusLow = 0.42f, radiusHigh = 0.70f, heightLow = 0.36f, heightHigh = 0.78f, scaleLow = 0.82f, scaleHigh = 1.20f, depth = -0.12f, stemWidth = 0.78f, countLow = 6, countHigh = 10 },
+        new Band { azimuthCentre =   0.0f, azimuthSpread = 170.0f, radiusLow = 0.26f, radiusHigh = 0.50f, heightLow = 0.16f, heightHigh = 0.42f, scaleLow = 1.00f, scaleHigh = 1.35f, depth =  0.34f, stemWidth = 0.86f, countLow = 2, countHigh = 4 }
     };
 
     private static readonly Species[] RoleSpecies =
     {
         Species.Rose, Species.OpenBloom, Species.Rose, Species.Dahlia,
         Species.OpenBloom, Species.Anemone, Species.Rose, Species.Dahlia,
-        Species.BerryCluster, Species.Anemone, Species.BerryCluster, Species.Dahlia,
+        Species.BerryCluster, Species.Anemone, Species.BerryCluster, Species.Gypsophila,
         Species.Lavender, Species.Gypsophila, Species.Lavender, Species.Gypsophila,
         Species.Eucalyptus, Species.Fern, Species.LongBlade, Species.LeafSprig,
-        Species.Eucalyptus, Species.LeafSprig, Species.LongBlade, Species.Fern
+        Species.LongBlade, Species.Eucalyptus, Species.LeafSprig, Species.LongBlade
     };
 
-    private struct Stage
+    // a loose asymmetric arc, not a ring. offsets are lateral, height, depth, scaled
+    // by stem length so the dial still moves the whole bouquet
+    private static readonly Vector3[] DominantTargets =
     {
-        public float azimuth;
-        public float length;
-        public float depth;
-    }
-
-    private static readonly Stage[] DominantStaging =
-    {
-        new Stage { azimuth = -40.0f, length = 0.90f, depth =  1.00f },
-        new Stage { azimuth =  46.0f, length = 1.12f, depth =  0.35f },
-        new Stage { azimuth = -12.0f, length = 1.28f, depth = -0.25f },
-        new Stage { azimuth =  92.0f, length = 0.84f, depth =  0.70f },
-        new Stage { azimuth = -80.0f, length = 1.02f, depth =  0.05f },
-        new Stage { azimuth =  16.0f, length = 1.20f, depth = -0.55f }
+        new Vector3(-0.34f, 0.28f,  0.20f),
+        new Vector3( 0.30f, 0.46f, -0.02f),
+        new Vector3( 0.06f, 0.14f,  0.26f),
+        new Vector3(-0.48f, 0.44f, -0.06f),
+        new Vector3( 0.52f, 0.22f,  0.08f),
+        new Vector3( 0.18f, 0.06f,  0.22f)
     };
 
     private struct Stalk
@@ -124,84 +121,137 @@ public static class BouquetGeometry
     private static List<Stalk> BuildPlan(BouquetSettings settings, BouquetPalette palette, Vector3 bind)
     {
         List<Stalk> plan = new List<Stalk>();
+        List<Vector3> bloomTips = new List<Vector3>();
         int index = 0;
 
         for (int role = 0; role < RoleCount; role++)
         {
+            if ((Role)role == Role.Filler)
+            {
+                continue;
+            }
+
             Band band = Bands[role];
             int count = Mathf.RoundToInt(Mathf.Lerp(band.countLow, band.countHigh, settings.density));
 
             for (int slot = 0; slot < count; slot++)
             {
-                plan.Add(BuildStalk(settings, palette, bind, (Role)role, band, slot, count, index));
+                Vector3 target = TargetFor(settings, (Role)role, band, slot, count, index);
+                Stalk stalk = MakeStalk(settings, palette, bind, index, (Role)role, band, target);
+                plan.Add(stalk);
+
+                if (BouquetFlora.IsBloom(stalk.species) && role <= (int)Role.Medium)
+                {
+                    bloomTips.Add(stalk.tip);
+                }
+
                 index++;
             }
         }
 
+        AddConnectors(plan, settings, palette, bind, bloomTips, ref index);
         return plan;
     }
 
-    private static Stalk BuildStalk(BouquetSettings settings, BouquetPalette palette, Vector3 bind,
-        Role role, Band band, int slot, int count, int index)
+    private static Vector3 TargetFor(BouquetSettings settings, Role role, Band band, int slot, int count, int index)
+    {
+        int seed = settings.seed;
+        float scale = settings.stemLength;
+
+        if (role == Role.Dominant)
+        {
+            Vector3 staged = DominantTargets[slot % DominantTargets.Length];
+            Vector3 jitter = new Vector3(
+                (BouquetFlora.Hash(index, 15, seed) - 0.5f) * 0.14f,
+                (BouquetFlora.Hash(index, 16, seed) - 0.5f) * 0.12f,
+                (BouquetFlora.Hash(index, 17, seed) - 0.5f) * 0.10f);
+            return (staged + jitter) * scale;
+        }
+
+        float across = (slot + 0.15f + 0.70f * BouquetFlora.Hash(index, 0, seed)) / count - 0.5f;
+        float azimuth = (band.azimuthCentre + band.azimuthSpread * across) * Mathf.Deg2Rad;
+
+        float bias = Mathf.Cos(azimuth - settings.asymmetryAngle * Mathf.Deg2Rad);
+        float flatten = 1.0f - settings.faceFlatten * Mathf.Cos(2.0f * azimuth);
+
+        float radius = Mathf.Lerp(band.radiusLow, band.radiusHigh, BouquetFlora.Hash(index, 1, seed))
+                     * flatten * (1.0f + settings.asymmetry * bias) * settings.spreadGain;
+        float height = Mathf.Lerp(band.heightLow, band.heightHigh, BouquetFlora.Hash(index, 4, seed));
+
+        return new Vector3(Mathf.Cos(azimuth) * radius, height, Mathf.Sin(azimuth) * radius) * scale
+             + Vector3.forward * band.depth * settings.depthSpread;
+    }
+
+    // filler is connective tissue: it goes where two major heads leave a hole, set
+    // back so it reads behind them, not scattered on its own ring
+    private static void AddConnectors(List<Stalk> plan, BouquetSettings settings, BouquetPalette palette,
+        Vector3 bind, List<Vector3> bloomTips, ref int index)
+    {
+        Band band = Bands[(int)Role.Filler];
+        int count = Mathf.RoundToInt(Mathf.Lerp(band.countLow, band.countHigh, settings.density));
+        if (bloomTips.Count < 2)
+        {
+            return;
+        }
+
+        for (int slot = 0; slot < count; slot++)
+        {
+            int a = Mathf.FloorToInt(BouquetFlora.Hash(index, 18, settings.seed) * (bloomTips.Count - 0.001f));
+            int b = (a + 1 + Mathf.FloorToInt(BouquetFlora.Hash(index, 19, settings.seed) * (bloomTips.Count - 1.001f))) % bloomTips.Count;
+
+            Vector3 gap = Vector3.Lerp(bloomTips[a], bloomTips[b], 0.35f + 0.30f * BouquetFlora.Hash(index, 23, settings.seed));
+            gap -= bind;
+            gap += new Vector3(
+                (BouquetFlora.Hash(index, 24, settings.seed) - 0.5f) * 0.16f,
+                (BouquetFlora.Hash(index, 25, settings.seed) - 0.5f) * 0.20f + 0.06f,
+                -0.10f - 0.18f * BouquetFlora.Hash(index, 26, settings.seed)) * settings.stemLength;
+
+            plan.Add(MakeStalk(settings, palette, bind, index, Role.Filler, band, gap));
+            index++;
+        }
+    }
+
+    private static Stalk MakeStalk(BouquetSettings settings, BouquetPalette palette, Vector3 bind,
+        int index, Role role, Band band, Vector3 target)
     {
         int seed = settings.seed;
 
-        // stratified inside the role's arc, then jittered: pure random clumps and
-        // an even step reads as a machine
-        float across = (slot + 0.15f + 0.70f * BouquetFlora.Hash(index, 0, seed)) / count - 0.5f;
-        float azimuth = band.azimuthCentre + band.azimuthSpread * across;
-
-        float stagedLength = 1.0f;
-        float stagedDepth = 0.0f;
-        if (role == Role.Dominant)
-        {
-            Stage stage = DominantStaging[slot % DominantStaging.Length];
-            azimuth = stage.azimuth + (BouquetFlora.Hash(index, 15, seed) - 0.5f) * 26.0f;
-            stagedLength = stage.length;
-            stagedDepth = stage.depth;
-        }
-
-        float azimuthRadians = azimuth * Mathf.Deg2Rad;
-
-        float bias = Mathf.Cos(azimuthRadians - settings.asymmetryAngle * Mathf.Deg2Rad);
-        float flatten = 1.0f - settings.faceFlatten * Mathf.Cos(2.0f * azimuthRadians);
-        float tiltFraction = Mathf.Lerp(band.tiltLow, band.tiltHigh, BouquetFlora.Hash(index, 1, seed));
-        float tilt = settings.coneHalfAngle * Mathf.Deg2Rad * tiltFraction * flatten * (1.0f + settings.asymmetry * bias);
-
         Species species = RoleSpecies[(int)role * 4 + Mathf.FloorToInt(BouquetFlora.Hash(index, 2, seed) * 3.999f)];
+        float headSize = settings.headScale * Mathf.Lerp(band.scaleLow, band.scaleHigh, BouquetFlora.Hash(index, 3, seed));
 
-        float scale = Mathf.Lerp(band.scaleLow, band.scaleHigh, BouquetFlora.Hash(index, 3, seed));
-        float headSize = settings.headScale * scale;
+        Vector3 targetTip = bind + target;
+        Vector3 heading = Vector3.Normalize(targetTip - bind);
 
-        float lengthRoll = BouquetFlora.Hash(index, 4, seed);
-        float kick = BouquetFlora.Hash(index, 5, seed) < 0.18f ? 1.20f : 1.0f;
-        float silhouette = settings.stemLength * Mathf.Lerp(band.lengthLow, band.lengthHigh, lengthRoll) * kick * stagedLength;
-        float reach = Mathf.Max(silhouette - BouquetFlora.TipReserve(species) * headSize, settings.stemLength * 0.22f);
+        // a sprig head keeps climbing past the stem, so the stem stops short of the
+        // place the silhouette is supposed to reach
+        Vector3 tip = targetTip - heading * BouquetFlora.TipReserve(species) * headSize;
 
-        Vector2 around = new Vector2(Mathf.Cos(azimuthRadians), Mathf.Sin(azimuthRadians));
-        Vector3 heading = new Vector3(around.x * Mathf.Sin(tilt), Mathf.Cos(tilt), around.y * Mathf.Sin(tilt));
+        Vector3 flat = new Vector3(target.x, 0.0f, target.z);
+        float radial = flat.magnitude;
+        float azimuth = Mathf.Atan2(target.z, target.x);
+        float rank = Mathf.Clamp01(radial / Mathf.Max(settings.stemLength * 0.7f, 1e-3f));
 
-        // stems leave the tie at different heights and are twisted round it, which
-        // is what a spiral bound bundle looks like instead of a generation point
-        float twist = settings.bundleTwist * Mathf.Deg2Rad * tiltFraction;
-        Vector2 anchorAround = new Vector2(Mathf.Cos(azimuthRadians + twist), Mathf.Sin(azimuthRadians + twist));
+        float twist = settings.bundleTwist * Mathf.Deg2Rad * rank;
+        Vector2 around = new Vector2(Mathf.Cos(azimuth + twist), Mathf.Sin(azimuth + twist));
         Vector3 anchor = bind
-            + new Vector3(anchorAround.x, 0.0f, anchorAround.y) * settings.ribbonWidth * (0.25f + 0.70f * tiltFraction)
+            + new Vector3(around.x, 0.0f, around.y) * settings.ribbonWidth * (0.25f + 0.70f * rank)
             + Vector3.up * (BouquetFlora.Hash(index, 6, seed) - 0.5f) * settings.tieHeight;
 
-        Vector3 tip = anchor + heading * reach;
-        tip += Vector3.forward * (band.depth + stagedDepth * 0.22f) * settings.depthSpread;
-        tip += Vector3.up * (BouquetFlora.Hash(index, 7, seed) - 0.5f) * reach * 0.10f;
+        Vector3 span = tip - anchor;
+        float reach = Mathf.Max(span.magnitude, 1e-3f);
+        Vector3 direction = span / reach;
 
-        Vector3 lateral = Vector3.Normalize(Vector3.Cross(heading, Vector3.up));
+        Vector3 lateral = Vector3.Cross(direction, Vector3.up);
+        lateral = lateral.sqrMagnitude > 1e-4f ? lateral.normalized : Vector3.right;
+
         float bend = (BouquetFlora.Hash(index, 8, seed) - 0.5f) * settings.sideBend;
-        float curve = settings.outwardCurve * (0.55f + 0.90f * BouquetFlora.Hash(index, 9, seed));
+        float curve = settings.outwardCurve * (0.50f + 1.00f * BouquetFlora.Hash(index, 9, seed));
 
-        Vector3 handleLow = anchor + Vector3.up * reach * curve * 0.45f;
-        Vector3 handleHigh = tip - heading * reach * 0.34f + lateral * bend * reach;
+        Vector3 handleLow = anchor + Vector3.up * reach * curve * 0.48f;
+        Vector3 handleHigh = tip - direction * reach * 0.34f + lateral * bend * reach;
 
         float cutLength = settings.cutLength * (0.5f + 0.5f * BouquetFlora.Hash(index, 10, seed));
-        Vector3 cutEnd = anchor + Vector3.Normalize(new Vector3(-heading.x, -1.05f, -heading.z)) * cutLength;
+        Vector3 cutEnd = anchor + Vector3.Normalize(new Vector3(-direction.x, -1.05f, -direction.z)) * cutLength;
 
         int bloomSlot = Mathf.FloorToInt(BouquetFlora.Hash(index, 11, seed) * 2.999f);
         Color bloom = palette.Vary(palette.Bloom(bloomSlot),
