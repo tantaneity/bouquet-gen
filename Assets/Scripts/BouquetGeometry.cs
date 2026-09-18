@@ -52,8 +52,8 @@ public static class BouquetGeometry
 
     private static readonly Species[] RoleSpecies =
     {
-        Species.Rose, Species.OpenBloom, Species.Rose, Species.Dahlia,
-        Species.OpenBloom, Species.Anemone, Species.Rose, Species.Dahlia,
+        Species.Rose, Species.Carnation, Species.Rose, Species.Dahlia,
+        Species.Carnation, Species.Anemone, Species.OpenBloom, Species.Dahlia,
         Species.BerryCluster, Species.Anemone, Species.BerryCluster, Species.Gypsophila,
         Species.Lavender, Species.Gypsophila, Species.Lavender, Species.Gypsophila,
         Species.Eucalyptus, Species.Fern, Species.LongBlade, Species.LeafSprig,

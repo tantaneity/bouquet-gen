@@ -11,6 +11,7 @@ public static class BouquetShapes
     private const int DiscSteps = 16;
     private const int RibbonSteps = 12;
     private const float BladeFold = 0.7f;
+    private const int FrillStepsPerTooth = 4;
 
     // a petal is fat in the middle and closes at both ends, which reads as drawn;
     // an ellipse reads as a mathematical blob
@@ -31,6 +32,42 @@ public static class BouquetShapes
         }
 
         return rim.ToArray();
+    }
+
+    // a fan that opens from a narrow claw into a toothed, wavering edge
+    public static Vector2[] FrillRim(float length, float width, int teeth, float jag, int salt)
+    {
+        const int sideSteps = 3;
+        float spread = Mathf.Atan2(width, length);
+        List<Vector2> rim = new List<Vector2>(teeth * 2 + sideSteps * 2 + 2);
+
+        rim.Add(Vector2.zero);
+        for (int i = 1; i <= sideSteps; i++)
+        {
+            rim.Add(Polar(length * 0.8f * i / (sideSteps + 1), -spread));
+        }
+
+        int edge = teeth * FrillStepsPerTooth;
+        for (int k = 0; k <= edge; k++)
+        {
+            float across = k / (float)edge;
+            float angle = Mathf.Lerp(-spread, spread, across);
+            float scallop = 0.5f - 0.5f * Mathf.Cos(across * teeth * Mathf.PI * 2.0f);
+            float waver = Mathf.Sin(across * 5.1f + salt * 2.3f) * jag * 0.6f;
+            rim.Add(Polar(length * (1.0f - jag * scallop + waver), angle));
+        }
+
+        for (int i = sideSteps; i >= 1; i--)
+        {
+            rim.Add(Polar(length * 0.8f * i / (sideSteps + 1), spread));
+        }
+
+        return rim.ToArray();
+    }
+
+    private static Vector2 Polar(float radius, float angle)
+    {
+        return new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
     }
 
     // Mathf.Sin(Mathf.PI) lands a hair below zero, and Pow of a negative base with a
@@ -164,12 +201,12 @@ public static class BouquetShapes
     }
 
     public static void AddCardLine(MeshBuffer mesh, Matrix4x4 frame, IReadOnlyList<Vector2> path,
-        Color ink, float halfWidth, float depthBias)
+        Color ink, float halfWidth, float depthBias, Bend bend = default)
     {
         Vector3[] points = new Vector3[path.Count];
         for (int i = 0; i < path.Count; i++)
         {
-            points[i] = frame.MultiplyPoint3x4(path[i]);
+            points[i] = frame.MultiplyPoint3x4(bend.Lift(path[i]));
         }
 
         AddRibbon(mesh, points, ink, halfWidth, Outline.Detail, depthBias);
