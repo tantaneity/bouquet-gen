@@ -240,10 +240,7 @@ public static class BouquetShapes
         {
             float t = i / (float)steps;
             float half = width * Mathf.Pow(Mathf.Max(Mathf.Sin(Mathf.PI * Mathf.Min(t + 0.06f, 1.0f)), 0.0f), 0.55f);
-            float sway = bend * t * t;
-            float lift = curl * Mathf.Sin(Mathf.PI * t);
-
-            Vector3 spine = new Vector3(sway, length * t, lift);
+            Vector3 spine = BladeSpine(length, bend, curl, t);
             Vector3 left = frame.MultiplyPoint3x4(spine + new Vector3(-half, 0.0f, 0.0f));
             Vector3 right = frame.MultiplyPoint3x4(spine + new Vector3(half, 0.0f, 0.0f));
 
@@ -260,6 +257,11 @@ public static class BouquetShapes
                 mesh.AddQuad(here - 2, here - 1, here + 1, here);
             }
         }
+    }
+
+    public static Vector3 BladeSpine(float length, float bend, float curl, float t)
+    {
+        return new Vector3(bend * t * t, length * t, curl * Mathf.Sin(Mathf.PI * t));
     }
 
     // a leafy spray is laid out along its stem, so local y runs up the axis and the
