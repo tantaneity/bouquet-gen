@@ -20,6 +20,22 @@ public static class Outline
     public const float None = 0.0f;
 }
 
+public static class Shading
+{
+    public static readonly Vector4 Flat = Vector4.zero;
+    public static readonly Vector4 Tube = new Vector4(0.0f, 0.0f, 0.0f, 3.0f);
+
+    public static Vector4 Surface(Vector3 normal)
+    {
+        return new Vector4(normal.x, normal.y, normal.z, 1.0f);
+    }
+
+    public static Vector4 Sphere(Vector2 offset)
+    {
+        return new Vector4(offset.x, offset.y, 0.0f, 2.0f);
+    }
+}
+
 public sealed class MeshBuffer
 {
     private readonly List<Vector3> positions = new List<Vector3>();
@@ -29,6 +45,7 @@ public sealed class MeshBuffer
     private readonly List<Vector4> strokes = new List<Vector4>();
     private readonly List<Vector4> inks = new List<Vector4>();
     private readonly List<Vector3> facings = new List<Vector3>();
+    private readonly List<Vector4> shadings = new List<Vector4>();
     private readonly List<int> indices = new List<int>();
 
     private Color ink = Color.black;
@@ -52,7 +69,7 @@ public sealed class MeshBuffer
     // the reference as sRGB, so the conversion happens once, here, or the whole
     // bouquet comes out pale
     public void AddVertex(Vector3 position, Vector3 expansion, Vector4 tangent, Color color,
-        StrokeKind kind, float width, float outlineWeight, float depthBias)
+        StrokeKind kind, float width, float outlineWeight, float depthBias, Vector4 shading = default)
     {
         positions.Add(position);
         expansions.Add(expansion);
@@ -62,6 +79,7 @@ public sealed class MeshBuffer
         Color line = ink.linear;
         inks.Add(new Vector4(line.r, line.g, line.b, 1.0f));
         facings.Add(facing);
+        shadings.Add(shading);
     }
 
     public void AddTriangle(int a, int b, int c)
@@ -88,6 +106,7 @@ public sealed class MeshBuffer
         mesh.SetUVs(0, strokes);
         mesh.SetUVs(1, inks);
         mesh.SetUVs(2, facings);
+        mesh.SetUVs(3, shadings);
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateBounds();
     }

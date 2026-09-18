@@ -9,6 +9,10 @@
 #define EDGE_ON_FLOOR 0.22
 #define EDGE_ON_RANGE 0.45
 #define EDGE_ON_MIN_COSINE 0.12
+#define SHADE_SURFACE 0.5
+#define SHADE_SPHERE 1.5
+#define SHADE_TUBE 2.5
+#define TUBE_ROUNDNESS 1.3
 
 CBUFFER_START(UnityPerMaterial)
     float _LineWidth;
@@ -17,6 +21,11 @@ CBUFFER_START(UnityPerMaterial)
     float _OutlineCeiling;
     float _OutlineWobble;
     float _InkRecess;
+    float4 _LightView;
+    float4 _ShadowTint;
+    float _ShadeThreshold;
+    float _ShadeSoftness;
+    float _ShadeStrength;
 CBUFFER_END
 
 struct Attributes
@@ -28,12 +37,14 @@ struct Attributes
     float4 stroke : TEXCOORD0;
     float4 ink : TEXCOORD1;
     float3 facing : TEXCOORD2;
+    float4 shading : TEXCOORD3;
 };
 
 struct Varyings
 {
     float4 positionCS : SV_POSITION;
     float4 color : COLOR;
+    float4 normalWS : TEXCOORD0;
 };
 
 // a world direction turned into a unit direction in pixel space, so the widening
@@ -66,6 +77,31 @@ float FacingCosine(float3 facingOS, float3 eyeDirection)
 
     float3 facingWS = normalize(TransformObjectToWorldDir(facingOS, false));
     return abs(dot(facingWS, eyeDirection));
+}
+
+// w is 1 where the element has a surface to light and 0 where it stays flat
+float4 ShadingNormal(float4 shading, float3 expandWS, float3 eyeDirection)
+{
+    if (shading.w < SHADE_SURFACE)
+    {
+        return float4(eyeDirection, 0.0);
+    }
+
+    if (shading.w < SHADE_SPHERE)
+    {
+        float3 normalWS = normalize(TransformObjectToWorldDir(shading.xyz, false));
+        return float4(dot(normalWS, eyeDirection) < 0.0 ? -normalWS : normalWS, 1.0);
+    }
+
+    if (shading.w < SHADE_TUBE)
+    {
+        float3 right = UNITY_MATRIX_I_V._m00_m10_m20;
+        float3 up = UNITY_MATRIX_I_V._m01_m11_m21;
+        float2 offset = shading.xy;
+        return float4(right * offset.x + up * offset.y + eyeDirection * sqrt(saturate(1.0 - dot(offset, offset))), 1.0);
+    }
+
+    return float4(normalize(expandWS * TUBE_ROUNDNESS + eyeDirection), 1.0);
 }
 
 Varyings Vertex(Attributes input)
@@ -139,15 +175,32 @@ Varyings Vertex(Attributes input)
     output.positionCS = clip;
 #ifdef BOUQUET_INK_PASS
     output.color = input.ink;
+    output.normalWS = float4(eyeDirection, 0.0);
 #else
     output.color = input.color;
+    output.normalWS = ShadingNormal(input.shading, expandWS, eyeDirection);
 #endif
     return output;
 }
 
+// two tones, lit from over the viewer's shoulder so every side of the turntable
+// gets the same key: flat fills stay flat, but each surface now has a lit and a
+// shaded side and that is what reads as volume
 float4 Fragment(Varyings input) : SV_Target
 {
-    return float4(input.color.rgb, 1.0);
+    float3 colour = input.color.rgb;
+#ifndef BOUQUET_INK_PASS
+    float3 right = UNITY_MATRIX_I_V._m00_m10_m20;
+    float3 up = UNITY_MATRIX_I_V._m01_m11_m21;
+    float3 back = UNITY_MATRIX_I_V._m02_m12_m22;
+    float3 light = normalize(right * _LightView.x + up * _LightView.y + back * _LightView.z);
+
+    float lit = dot(normalize(input.normalWS.xyz), light);
+    float band = smoothstep(_ShadeThreshold - _ShadeSoftness, _ShadeThreshold + _ShadeSoftness, lit);
+    float3 shaded = lerp(colour * _ShadowTint.rgb, colour, band);
+    colour = lerp(colour, shaded, _ShadeStrength * saturate(input.normalWS.w));
+#endif
+    return float4(colour, 1.0);
 }
 
 #endif

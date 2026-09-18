@@ -10,6 +10,7 @@ public static class BouquetShapes
     private const int PetalSteps = 11;
     private const int DiscSteps = 16;
     private const int RibbonSteps = 12;
+    private const float BladeFold = 0.7f;
 
     // a petal is fat in the middle and closes at both ends, which reads as drawn;
     // an ellipse reads as a mathematical blob
@@ -63,8 +64,15 @@ public static class BouquetShapes
     public static void AddBillboardShape(MeshBuffer mesh, Vector3 anchor, Vector2 centre, IReadOnlyList<Vector2> rim,
         Color fill, float outlineWeight, float depthBias)
     {
+        float radius = 1e-5f;
+        for (int i = 0; i < rim.Count; i++)
+        {
+            radius = Mathf.Max(radius, (rim[i] - centre).magnitude);
+        }
+
         int first = mesh.VertexCount;
-        mesh.AddVertex(anchor, new Vector3(centre.x, centre.y, 0.0f), Vector4.zero, fill, StrokeKind.Billboard, 0.0f, 0.0f, depthBias);
+        mesh.AddVertex(anchor, new Vector3(centre.x, centre.y, 0.0f), Vector4.zero, fill, StrokeKind.Billboard, 0.0f, 0.0f, depthBias,
+            Shading.Sphere(Vector2.zero));
 
         for (int i = 0; i < rim.Count; i++)
         {
@@ -80,7 +88,7 @@ public static class BouquetShapes
             }
 
             mesh.AddVertex(anchor, new Vector3(point.x, point.y, 0.0f), new Vector4(outward.x, outward.y, 0.0f, 0.0f),
-                fill, StrokeKind.Billboard, 0.0f, outlineWeight, depthBias);
+                fill, StrokeKind.Billboard, 0.0f, outlineWeight, depthBias, Shading.Sphere((point - centre) / radius));
         }
 
         for (int i = 0; i < rim.Count; i++)
@@ -123,11 +131,12 @@ public static class BouquetShapes
     }
 
     public static void AddCardShape(MeshBuffer mesh, Matrix4x4 frame, IReadOnlyList<Vector2> rim, Vector2 centre,
-        Color fill, float outlineWeight, float depthBias)
+        Color fill, float outlineWeight, float depthBias, Bend bend = default)
     {
         int first = mesh.VertexCount;
         mesh.SetFacing(frame.MultiplyVector(Vector3.forward).normalized);
-        mesh.AddVertex(frame.MultiplyPoint3x4(centre), Vector3.zero, Vector4.zero, fill, StrokeKind.Card, 0.0f, 0.0f, depthBias);
+        mesh.AddVertex(frame.MultiplyPoint3x4(bend.Lift(centre)), Vector3.zero, Vector4.zero, fill, StrokeKind.Card, 0.0f, 0.0f, depthBias,
+            Shading.Surface(frame.MultiplyVector(bend.Normal(centre)).normalized));
 
         for (int i = 0; i < rim.Count; i++)
         {
@@ -142,8 +151,8 @@ public static class BouquetShapes
                 outward = -outward;
             }
 
-            mesh.AddVertex(frame.MultiplyPoint3x4(point), frame.MultiplyVector(outward).normalized, Vector4.zero,
-                fill, StrokeKind.Card, 0.0f, outlineWeight, depthBias);
+            mesh.AddVertex(frame.MultiplyPoint3x4(bend.Lift(point)), frame.MultiplyVector(outward).normalized, Vector4.zero,
+                fill, StrokeKind.Card, 0.0f, outlineWeight, depthBias, Shading.Surface(frame.MultiplyVector(bend.Normal(point)).normalized));
         }
 
         mesh.SetFacing(Vector3.zero);
@@ -190,8 +199,8 @@ public static class BouquetShapes
             Vector3 behind = points[Mathf.Max(i - 1, 0)];
             Vector3 tangent = Vector3.Normalize(ahead - behind);
 
-            mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, -1.0f), fill, StrokeKind.Stem, halfWidth, outlineWeight, depthBias);
-            mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, 1.0f), fill, StrokeKind.Stem, halfWidth, outlineWeight, depthBias);
+            mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, -1.0f), fill, StrokeKind.Stem, halfWidth, outlineWeight, depthBias, Shading.Tube);
+            mesh.AddVertex(point, Vector3.zero, new Vector4(tangent.x, tangent.y, tangent.z, 1.0f), fill, StrokeKind.Stem, halfWidth, outlineWeight, depthBias, Shading.Tube);
 
             if (i > 0)
             {
@@ -239,8 +248,11 @@ public static class BouquetShapes
             Vector3 right = frame.MultiplyPoint3x4(spine + new Vector3(half, 0.0f, 0.0f));
 
             Vector3 outward = frame.MultiplyVector(Vector3.right).normalized;
-            mesh.AddVertex(left, -outward, Vector4.zero, fill, StrokeKind.Card, 0.0f, outlineWeight, 0.0f);
-            mesh.AddVertex(right, outward, Vector4.zero, fill, StrokeKind.Card, 0.0f, outlineWeight, 0.0f);
+            Vector3 face = frame.MultiplyVector(Vector3.forward).normalized;
+            mesh.AddVertex(left, -outward, Vector4.zero, fill, StrokeKind.Card, 0.0f, outlineWeight, 0.0f,
+                Shading.Surface(Vector3.Normalize(face - outward * BladeFold)));
+            mesh.AddVertex(right, outward, Vector4.zero, fill, StrokeKind.Card, 0.0f, outlineWeight, 0.0f,
+                Shading.Surface(Vector3.Normalize(face + outward * BladeFold)));
 
             if (i > 0)
             {
@@ -258,5 +270,38 @@ public static class BouquetShapes
         right = Vector3.Normalize(right * Mathf.Cos(roll) + up * Mathf.Sin(roll));
         up = Vector3.Cross(axis, right);
         return new Matrix4x4(right, up, axis, new Vector4(origin.x, origin.y, origin.z, 1.0f));
+    }
+}
+
+// a card bowed into a shallow paraboloid around a pivot. the rim barely moves, but
+// the normals turn across the surface and that is what the light reads as form
+public readonly struct Bend
+{
+    private readonly Vector2 pivot;
+    private readonly float along;
+    private readonly float across;
+
+    public Bend(Vector2 pivot, float along, float across)
+    {
+        this.pivot = pivot;
+        this.along = along;
+        this.across = across;
+    }
+
+    public static Bend Bowl(Vector2 pivot, float depth)
+    {
+        return new Bend(pivot, depth, depth);
+    }
+
+    public Vector3 Lift(Vector2 point)
+    {
+        Vector2 local = point - pivot;
+        return new Vector3(point.x, point.y, along * local.x * local.x + across * local.y * local.y);
+    }
+
+    public Vector3 Normal(Vector2 point)
+    {
+        Vector2 local = point - pivot;
+        return new Vector3(-2.0f * along * local.x, -2.0f * across * local.y, 1.0f).normalized;
     }
 }

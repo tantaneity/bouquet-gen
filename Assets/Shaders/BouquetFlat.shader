@@ -8,6 +8,11 @@ Shader "Custom/BouquetFlat"
         _OutlineCeiling ("Outline Thick Limit", Range(1, 2)) = 1.22
         _OutlineWobble ("Outline Wobble", Range(0, 0.6)) = 0.22
         _InkRecess ("Ink Recess", Range(0, 0.02)) = 0.0007
+        _LightView ("Light Direction (view space)", Vector) = (-0.55, 0.65, 0.52, 0)
+        _ShadowTint ("Shadow Multiplier (linear)", Vector) = (0.42, 0.40, 0.52, 0)
+        _ShadeThreshold ("Shade Threshold", Range(-1, 1)) = 0.12
+        _ShadeSoftness ("Shade Softness", Range(0.001, 0.3)) = 0.07
+        _ShadeStrength ("Shade Strength", Range(0, 1)) = 1
     }
 
     SubShader

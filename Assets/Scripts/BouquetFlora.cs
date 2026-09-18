@@ -35,6 +35,10 @@ public static class BouquetFlora
     private const float HeadAxis = 0.5f;
     private const float HeadLift = 0.55f;
     private const float HeadNod = 0.5f;
+    private const float PetalCurl = 0.22f;
+    private const float PetalHollow = 0.45f;
+    private const float DiscDome = 0.5f;
+    private const float LeafBowl = 0.35f;
 
     public static float TipReserve(Species species)
     {
@@ -118,6 +122,11 @@ public static class BouquetFlora
              * Matrix4x4.Rotate(Quaternion.AngleAxis(-cup, Vector3.up));
     }
 
+    private static Bend PetalBend(float length, float width, float curl)
+    {
+        return new Bend(Vector2.zero, curl / length, PetalHollow / Mathf.Max(width, 1e-4f));
+    }
+
     private static float PetalTurn(int petals, int p, float phase, float rollJitter, int salt)
     {
         float wiggle = Hash(salt + p, 31, p * 7 + 3);
@@ -134,7 +143,8 @@ public static class BouquetFlora
 
             Vector2[] rim = BouquetShapes.PetalRim(ring.length * scale, ring.width * scale, ring.tipSharp, skew);
             Matrix4x4 frame = PetalFrame(head, ring.layer + p * PetalStep, turn, ring.cup);
-            BouquetShapes.AddCardShape(mesh, frame, rim, new Vector2(ring.length * scale * 0.45f, 0.0f), fill, outlineWeight, 0.0f);
+            BouquetShapes.AddCardShape(mesh, frame, rim, new Vector2(ring.length * scale * 0.45f, 0.0f), fill, outlineWeight, 0.0f,
+                PetalBend(ring.length * scale, ring.width * scale, PetalCurl));
         }
     }
 
@@ -153,7 +163,8 @@ public static class BouquetFlora
     private static void HeadDisc(MeshBuffer mesh, Matrix4x4 head, float radius, float lift, Color fill, float outlineWeight)
     {
         Matrix4x4 frame = head * Matrix4x4.Translate(new Vector3(0.0f, 0.0f, lift));
-        BouquetShapes.AddCardShape(mesh, frame, BouquetShapes.CircleRim(radius, DiscSteps, 1.0f), Vector2.zero, fill, outlineWeight, 0.0f);
+        BouquetShapes.AddCardShape(mesh, frame, BouquetShapes.CircleRim(radius, DiscSteps, 1.0f), Vector2.zero, fill, outlineWeight, 0.0f,
+            Bend.Bowl(Vector2.zero, -DiscDome / radius));
     }
 
     private static void Stamens(MeshBuffer mesh, Matrix4x4 head, StamenSpec spec, Color ink, float detailWidth)
@@ -180,7 +191,8 @@ public static class BouquetFlora
             float length = size * (0.58f + 0.20f * Hash(salt + p, 34, p * 5 + 1));
             Vector2[] rim = BouquetShapes.PetalRim(length, size * 0.15f, 0.80f, 0.0f);
             Matrix4x4 frame = PetalFrame(head, -SepalDrop - p * PetalStep, turn, -SepalReflex);
-            BouquetShapes.AddCardShape(mesh, frame, rim, new Vector2(length * 0.45f, 0.0f), sepal, Outline.Contour, 0.0f);
+            BouquetShapes.AddCardShape(mesh, frame, rim, new Vector2(length * 0.45f, 0.0f), sepal, Outline.Contour, 0.0f,
+                PetalBend(length, size * 0.15f, -PetalCurl));
         }
     }
 
@@ -392,7 +404,7 @@ public static class BouquetFlora
             Matrix4x4 leaf = frame * Matrix4x4.Translate(new Vector3(0.0f, 0.0f, 0.0f));
 
             BouquetShapes.AddCardShape(mesh, leaf, Offset(BouquetShapes.CircleRim(radius, 13, 0.88f), at), at,
-                palette.leaf, Outline.Contour, (i + 1) * BouquetShapes.LayerStep * 0.5f);
+                palette.leaf, Outline.Contour, (i + 1) * BouquetShapes.LayerStep * 0.5f, Bend.Bowl(at, LeafBowl / radius));
             BouquetShapes.AddCardLine(mesh, leaf, new[] { at - new Vector2(side * radius * 0.7f, 0.0f), at + new Vector2(side * radius * 0.7f, 0.0f) },
                 palette.ink, detailWidth, (i + 1) * BouquetShapes.LayerStep * 0.5f + BouquetShapes.LayerStep * 0.25f);
         }
@@ -423,8 +435,9 @@ public static class BouquetFlora
                     rim[k] = BouquetShapes.Rotate(rim[k], turn) + root;
                 }
 
-                BouquetShapes.AddCardShape(mesh, frame, rim, root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn),
-                    blade, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f);
+                Vector2 middle = root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn);
+                BouquetShapes.AddCardShape(mesh, frame, rim, middle,
+                    blade, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
             }
         }
     }
@@ -467,8 +480,9 @@ public static class BouquetFlora
                 rim[k] = BouquetShapes.Rotate(rim[k], turn) + root;
             }
 
-            BouquetShapes.AddCardShape(mesh, frame, rim, root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn),
-                palette.leaf, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f);
+            Vector2 middle = root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn);
+            BouquetShapes.AddCardShape(mesh, frame, rim, middle,
+                palette.leaf, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
         }
     }
 

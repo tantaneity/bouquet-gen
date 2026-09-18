@@ -29,6 +29,8 @@ public static class SceneBootstrap
         BouquetPalette colors = BouquetPalette.Preset(2);
         Material bouquetMaterial = LoadOrCreate(shader, BouquetMaterialPath, colors.ink, 0.0021f);
         Material dialMaterial = LoadOrCreate(shader, DialMaterialPath, DialInk, DialLineWidth);
+        dialMaterial.SetFloat("_ShadeStrength", 0.0f);
+        EditorUtility.SetDirty(dialMaterial);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 

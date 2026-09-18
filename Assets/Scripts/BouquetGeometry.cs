@@ -291,8 +291,10 @@ public static class BouquetGeometry
             Vector3 rim = bind + outward * radius;
 
             mesh.SetInk(palette.Line(palette.ribbon, 0.34f));
-            mesh.AddVertex(rim + Vector3.down * halfHeight, Vector3.down, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f);
-            mesh.AddVertex(rim + Vector3.up * halfHeight, Vector3.up, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f);
+            mesh.AddVertex(rim + Vector3.down * halfHeight, Vector3.down, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f,
+                Shading.Surface(outward));
+            mesh.AddVertex(rim + Vector3.up * halfHeight, Vector3.up, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f,
+                Shading.Surface(outward));
 
             if (s > 0)
             {
