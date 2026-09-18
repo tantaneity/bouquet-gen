@@ -25,21 +25,26 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _BindHeight: -0.34
+    - _BindHeight: -0.4
     - _Curve: 0.72
     - _CutLength: 0.31
-    - _HeadScale: 0.105
+    - _HeadScale: 0.135
+    - _HeadTilt: 0.35
+    - _KnotAngle: 200
     - _LineWidth: 0.0075
-    - _Palette: 3
-    - _RibbonWidth: 0.085
+    - _Palette: 2
+    - _Perspective: 0.3
+    - _Pitch: 8
+    - _RibbonWidth: 0.105
     - _Scale: 1
-    - _Seed: 18
-    - _Spread: 29
-    - _SpreadJitter: 0.07
-    - _StemCount: 24
-    - _StemLength: 0.95
+    - _Seed: 7
+    - _Spread: 27
+    - _SpreadJitter: 0.35
+    - _StemCount: 28
+    - _StemLength: 0.82
     - _StemWidth: 0.0095
     - _TailLength: 0.36
+    - _Yaw: 280
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

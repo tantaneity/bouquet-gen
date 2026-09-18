@@ -7,7 +7,7 @@
 
 #define MAX_STEMS 30
 #define STEM_SEGMENTS 5
-#define LAYER_COUNT 3
+#define RING_COUNT 3
 #define PALETTE_COUNT 4
 #define PALETTE_SLOTS 8
 
@@ -35,12 +35,17 @@
 #define ANEMONE_STAMENS 9
 #define RIBBON_TAILS 2
 
-#define STEM_CULL_MARGIN 0.08
-#define HEAD_CULL_SCALE 2.0
 #define CONTROL_POINT_REACH 0.55
 #define HIGHLIGHT_STEP 0.06
-#define DOME_FALLOFF 0.17
-#define BUNDLE_SPREAD 0.62
+#define BUNDLE_SPREAD 0.80
+#define HEAD_CULL_SCALE 2.1
+#define BACKGROUND_DEPTH 1e6
+
+// sub parts of one element step toward the viewer so they stack in the order drawn
+#define DEPTH_LAYER 0.0006
+
+#define MIN_BLOOM_FORESHORTEN 0.42
+#define MIN_SPRIG_FORESHORTEN 0.26
 
 CBUFFER_START(UnityPerMaterial)
     float _Palette;
@@ -56,8 +61,13 @@ CBUFFER_START(UnityPerMaterial)
     float _BindHeight;
     float _CutLength;
     float _HeadScale;
+    float _HeadTilt;
     float _RibbonWidth;
     float _TailLength;
+    float _KnotAngle;
+    float _Yaw;
+    float _Pitch;
+    float _Perspective;
 CBUFFER_END
 
 static const float3 PALETTE_DATA[PALETTE_COUNT * PALETTE_SLOTS] =
@@ -83,20 +93,27 @@ static const float3 PALETTE_DATA[PALETTE_COUNT * PALETTE_SLOTS] =
     float3(0.753, 0.549, 0.549), float3(0.898, 0.812, 0.776)
 };
 
-static const float LAYER_SPREAD[LAYER_COUNT] = { 1.10, 0.95, 0.78 };
-static const float LAYER_LENGTH[LAYER_COUNT] = { 1.22, 0.98, 0.72 };
-static const float LAYER_HEAD[LAYER_COUNT] = { 0.78, 1.00, 1.22 };
+// rings run outside in: outer stems lean furthest and carry the tall sprigs
+static const float RING_TILT[RING_COUNT] = { 1.00, 0.66, 0.32 };
+static const float RING_LENGTH[RING_COUNT] = { 1.12, 0.86, 0.60 };
+static const float RING_HEAD[RING_COUNT] = { 0.84, 1.00, 1.18 };
+static const float RING_ANCHOR[RING_COUNT] = { 1.00, 0.62, 0.26 };
+static const float RING_PHASE[RING_COUNT] = { 0.0, 0.7, 1.9 };
 
-static const int LAYER_SPECIES[LAYER_COUNT * 4] =
+static const int RING_SPECIES[RING_COUNT * 4] =
 {
     SPECIES_GYPSOPHILA, SPECIES_LAVENDER, SPECIES_FERN, SPECIES_EUCALYPTUS,
-    SPECIES_EUCALYPTUS, SPECIES_DAHLIA, SPECIES_ROSE, SPECIES_ANEMONE,
+    SPECIES_ROSE, SPECIES_DAHLIA, SPECIES_ANEMONE, SPECIES_EUCALYPTUS,
     SPECIES_ROSE, SPECIES_ANEMONE, SPECIES_DAHLIA, SPECIES_ROSE
 };
 
 // how far a head keeps climbing past the stem tip, in head sizes
 static const float SPECIES_REACH[7] = { 0.0, 0.0, 0.0, 2.9, 1.9, 2.6, 2.8 };
 static const float SPECIES_SIZE[7] = { 1.0, 0.92, 0.95, 1.0, 1.5, 1.0, 1.0 };
+
+// tall thin sprigs rise through the middle instead of flying out with their ring
+static const float SPECIES_TILT[7] = { 1.0, 1.0, 1.0, 0.84, 0.78, 1.06, 1.00 };
+static const float SPECIES_LENGTH[7] = { 1.0, 1.0, 1.0, 1.22, 1.26, 1.06, 1.08 };
 
 struct Attributes
 {
@@ -110,16 +127,27 @@ struct Varyings
     float2 uv : TEXCOORD0;
 };
 
+// painter's order without a sort: every element carries its own depth
+struct Canvas
+{
+    float3 color;
+    float depth;
+};
+
 struct Stem
 {
     float2 anchor;
     float2 control;
     float2 tip;
-    float2 tangent;
     float2 cutEnd;
-    float3 bloom;
+    float2 heading;
+    float anchorDepth;
+    float tipDepth;
+    float cutDepth;
     float headSize;
+    float foreshorten;
     float roll;
+    float3 bloom;
     int species;
 };
 
@@ -142,6 +170,31 @@ float2 Rot(float2 p, float angle)
     return float2(c * p.x - s * p.y, s * p.x + c * p.y);
 }
 
+float3 Orient(float3 v)
+{
+    float yaw = radians(_Yaw);
+    float pitch = radians(_Pitch);
+
+    float sy = sin(yaw);
+    float cy = cos(yaw);
+    v = float3(cy * v.x + sy * v.z, v.y, cy * v.z - sy * v.x);
+
+    float sp = sin(pitch);
+    float cp = cos(pitch);
+    return float3(v.x, cp * v.y - sp * v.z, cp * v.z + sp * v.y);
+}
+
+// z grows toward the viewer, so nearer means a larger z and a smaller depth
+float ViewScale(float3 v)
+{
+    return 1.0 / max(1.0 - v.z * _Perspective, 0.25);
+}
+
+float2 Project(float3 v)
+{
+    return v.xy * ViewScale(v);
+}
+
 float3 PaletteColor(int slot)
 {
     float position = clamp(_Palette, 0.0, PALETTE_COUNT - 1.0);
@@ -158,9 +211,12 @@ float SdSegment(float2 p, float2 a, float2 b)
     return length(pa - ba * h);
 }
 
-float SdCurve(float2 p, float2 a, float2 b, float2 c)
+// distance in x, curve parameter of the closest point in y:
+// the parameter is what lets a stem carry a depth that varies along its length
+float2 SdCurveAt(float2 p, float2 a, float2 b, float2 c)
 {
-    float distance = 1e9;
+    float best = 1e9;
+    float bestParameter = 0.0;
     float2 previous = a;
 
     [unroll]
@@ -168,11 +224,22 @@ float SdCurve(float2 p, float2 a, float2 b, float2 c)
     {
         float t = i / (float)STEM_SEGMENTS;
         float2 current = lerp(lerp(a, b, t), lerp(b, c, t), t);
-        distance = min(distance, SdSegment(p, previous, current));
+
+        float2 pa = p - previous;
+        float2 ba = current - previous;
+        float h = saturate(dot(pa, ba) / max(dot(ba, ba), 1e-6));
+        float distance = length(pa - ba * h);
+
+        if (distance < best)
+        {
+            best = distance;
+            bestParameter = (i - 1 + h) / STEM_SEGMENTS;
+        }
+
         previous = current;
     }
 
-    return distance;
+    return float2(best, bestParameter);
 }
 
 float SdRoundBox(float2 p, float2 halfSize, float radius)
@@ -203,101 +270,127 @@ float3 Lighten(float3 color, float amount)
     return lerp(color, 1.0, amount);
 }
 
-void Paint(inout float3 color, float distance, float3 fill, float3 ink, float lineWidth, float antialias)
+void Paint(inout Canvas canvas, float distance, float depth, float3 fill, float3 ink, float lineWidth, float antialias)
 {
-    float inside = 1.0 - smoothstep(-antialias, antialias, distance);
-    color = lerp(color, fill, inside);
+    if (depth > canvas.depth)
+    {
+        return;
+    }
 
+    float body = 1.0 - smoothstep(-antialias, antialias, distance);
     float stroke = 1.0 - smoothstep(-antialias, antialias, abs(distance) - lineWidth);
-    color = lerp(color, ink, stroke);
+    float mask = max(body, stroke);
+    if (mask <= 0.0)
+    {
+        return;
+    }
+
+    canvas.color = lerp(canvas.color, fill, body);
+    canvas.color = lerp(canvas.color, ink, stroke);
+    canvas.depth = (mask > 0.5) ? depth : canvas.depth;
 }
 
-Stem BuildStem(int index, int count, float2 bind)
+Stem BuildStem(int index, int count, float3 bind)
 {
-    int perLayer = max(count / LAYER_COUNT, 1);
-    int layer = min(index / perLayer, LAYER_COUNT - 1);
-    int layerStart = layer * perLayer;
-    int layerSize = (layer == LAYER_COUNT - 1) ? (count - layerStart) : perLayer;
-    int local = index - layerStart;
+    int perRing = max(count / RING_COUNT, 1);
+    int ring = min(index / perRing, RING_COUNT - 1);
+    int ringStart = ring * perRing;
+    int ringSize = (ring == RING_COUNT - 1) ? (count - ringStart) : perRing;
+    int local = index - ringStart;
 
-    int pairCount = max((layerSize + 1) / 2, 1);
-    int pair = local / 2;
-    float side = (local % 2 == 0) ? -1.0 : 1.0;
-    float across = side * (1.0 - (pair + 0.35) / pairCount);
-
-    float jitter = (StemHash(index, 0) - 0.5) * _SpreadJitter;
-    float angle = across * radians(_Spread) * LAYER_SPREAD[layer] + jitter;
-    float dome = 1.0 - DOME_FALLOFF * abs(across);
+    float azimuth = (local + 0.5) / ringSize * TAU + RING_PHASE[ring]
+                  + (StemHash(index, 0) - 0.5) * _SpreadJitter * TAU;
 
     Stem stem;
-    stem.species = LAYER_SPECIES[layer * 4 + (int)(StemHash(index, 4) * 3.999)];
-    stem.headSize = _HeadScale * LAYER_HEAD[layer] * SPECIES_SIZE[stem.species] * (0.78 + 0.44 * StemHash(index, 5));
+    stem.species = RING_SPECIES[ring * 4 + (int)(StemHash(index, 4) * 3.999)];
     stem.roll = StemHash(index, 6) * TAU;
+    stem.bloom = PaletteColor(SLOT_BLOOM_A + (int)(StemHash(index, 7) * 2.999));
 
-    float silhouette = _StemLength * LAYER_LENGTH[layer] * dome * (0.78 + 0.44 * StemHash(index, 1));
-    float reach = max(silhouette - SPECIES_REACH[stem.species] * stem.headSize, _StemLength * 0.25);
+    float tilt = radians(_Spread) * RING_TILT[ring] * SPECIES_TILT[stem.species] * (0.82 + 0.36 * StemHash(index, 8));
 
-    float2 outward = float2(sin(angle), cos(angle));
-    float2 mid = normalize(lerp(outward, float2(0.0, 1.0), _Curve));
+    float headSize = _HeadScale * RING_HEAD[ring] * SPECIES_SIZE[stem.species] * (0.78 + 0.44 * StemHash(index, 5));
+    float silhouette = _StemLength * RING_LENGTH[ring] * SPECIES_LENGTH[stem.species] * (0.80 + 0.40 * StemHash(index, 1));
+    float reach = max(silhouette - SPECIES_REACH[stem.species] * headSize, _StemLength * 0.25);
 
-    // stems enter the tie spread across its width, they do not meet at a point
-    float2 anchor = bind + float2(across * _RibbonWidth * BUNDLE_SPREAD, 0.0);
+    float2 around = float2(cos(azimuth), sin(azimuth));
+    float3 heading = float3(around.x * sin(tilt), cos(tilt), around.y * sin(tilt));
 
-    stem.anchor = anchor;
-    stem.control = anchor + mid * reach * CONTROL_POINT_REACH;
-    stem.tip = anchor + outward * reach;
-    stem.tangent = normalize(stem.tip - stem.control);
+    // stems enter the tie spread across it, they do not meet at a point
+    float3 anchor = bind + float3(around.x, 0.0, around.y) * _RibbonWidth * BUNDLE_SPREAD * RING_ANCHOR[ring];
+    float3 mid = normalize(lerp(heading, float3(0.0, 1.0, 0.0), _Curve));
+    float3 control = anchor + mid * reach * CONTROL_POINT_REACH;
+    float3 tip = anchor + heading * reach;
 
-    float cutAngle = -angle * 0.85 + (StemHash(index, 2) - 0.5) * 0.35;
     float cutLength = _CutLength * (0.55 + 0.45 * StemHash(index, 3));
-    stem.cutEnd = anchor + float2(sin(cutAngle), -cos(cutAngle)) * cutLength;
+    float3 cutEnd = anchor + normalize(float3(-heading.x, -1.1, -heading.z)) * cutLength;
 
-    float pick = StemHash(index, 7);
-    int bloomSlot = SLOT_BLOOM_A + (int)(pick * 2.999);
-    stem.bloom = PaletteColor(bloomSlot);
+    float3 viewAnchor = Orient(anchor);
+    float3 viewControl = Orient(control);
+    float3 viewTip = Orient(tip);
+    float3 viewCut = Orient(cutEnd);
+    float3 viewHeading = normalize(viewTip - viewControl);
+
+    stem.anchor = Project(viewAnchor);
+    stem.control = Project(viewControl);
+    stem.tip = Project(viewTip);
+    stem.cutEnd = Project(viewCut);
+    stem.anchorDepth = -viewAnchor.z;
+    stem.tipDepth = -viewTip.z;
+    stem.cutDepth = -viewCut.z;
+
+    float2 flat = viewHeading.xy;
+    float flatLength = length(flat);
+    stem.heading = (flatLength > 1e-4) ? flat / flatLength : float2(0.0, 1.0);
+
+    // a head is a flat card: a bloom faces the camera and only tilts a little,
+    // a sprig genuinely follows its stem and collapses as the stem turns away
+    bool isSprig = stem.species >= SPECIES_LAVENDER;
+    stem.foreshorten = isSprig
+        ? max(flatLength, MIN_SPRIG_FORESHORTEN)
+        : max(lerp(1.0, abs(viewHeading.z), _HeadTilt), MIN_BLOOM_FORESHORTEN);
+
+    stem.headSize = headSize * ViewScale(viewTip);
 
     return stem;
 }
 
-void DrawRose(inout float3 color, float2 local, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
+void DrawRose(inout Canvas canvas, float2 local, float depth, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
 {
-    Paint(color, SdPetalRing(local, 9.0, size, 1.05, roll), bloom, ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(local, 9.0, size, 1.05, roll), depth, bloom, ink, lineWidth, antialias);
 
     float2 middle = local - float2(size * 0.09, size * 0.06);
-    Paint(color, SdPetalRing(middle, 7.0, size * 0.74, 1.10, roll + 0.42), Lighten(bloom, HIGHLIGHT_STEP), ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(middle, 7.0, size * 0.74, 1.10, roll + 0.42), depth - DEPTH_LAYER, Lighten(bloom, HIGHLIGHT_STEP), ink, lineWidth, antialias);
 
     float2 inner = local - float2(-size * 0.05, size * 0.12);
-    Paint(color, SdPetalRing(inner, 5.0, size * 0.44, 1.15, roll + 1.05), Lighten(bloom, HIGHLIGHT_STEP * 2.0), ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(inner, 5.0, size * 0.44, 1.15, roll + 1.05), depth - DEPTH_LAYER * 2.0, Lighten(bloom, HIGHLIGHT_STEP * 2.0), ink, lineWidth, antialias);
 }
 
-void DrawAnemone(inout float3 color, float2 local, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
+void DrawAnemone(inout Canvas canvas, float2 local, float depth, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
 {
-    Paint(color, SdPetalRing(local, 6.0, size, 1.12, roll), bloom, ink, lineWidth, antialias);
-
-    float disc = length(local) - size * 0.30;
-    Paint(color, disc, ink, ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(local, 6.0, size, 1.12, roll), depth, bloom, ink, lineWidth, antialias);
+    Paint(canvas, length(local) - size * 0.30, depth - DEPTH_LAYER, ink, ink, lineWidth, antialias);
 
     float sector = TAU / ANEMONE_STAMENS;
     float angle = atan2(local.y, local.x) - roll;
     float2 stamen = Rot(local, -(round(angle / sector) * sector + roll));
     float speck = length(stamen - float2(size * 0.37, 0.0)) - size * 0.035;
-    Paint(color, speck, ink, ink, lineWidth * 0.6, antialias);
+    Paint(canvas, speck, depth - DEPTH_LAYER * 2.0, ink, ink, lineWidth * 0.6, antialias);
 }
 
-void DrawDahlia(inout float3 color, float2 local, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
+void DrawDahlia(inout Canvas canvas, float2 local, float depth, float size, float3 bloom, float3 ink, float lineWidth, float antialias, float roll)
 {
-    Paint(color, SdPetalRing(local, 12.0, size, 0.42, roll), bloom, ink, lineWidth, antialias);
-    Paint(color, SdPetalRing(local, 10.0, size * 0.76, 0.46, roll + 0.26), Lighten(bloom, HIGHLIGHT_STEP), ink, lineWidth, antialias);
-    Paint(color, SdPetalRing(local, 8.0, size * 0.50, 0.52, roll + 0.58), Lighten(bloom, HIGHLIGHT_STEP * 2.0), ink, lineWidth, antialias);
-    Paint(color, length(local) - size * 0.07, Lighten(bloom, HIGHLIGHT_STEP * 3.0), ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(local, 12.0, size, 0.42, roll), depth, bloom, ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(local, 10.0, size * 0.76, 0.46, roll + 0.26), depth - DEPTH_LAYER, Lighten(bloom, HIGHLIGHT_STEP), ink, lineWidth, antialias);
+    Paint(canvas, SdPetalRing(local, 8.0, size * 0.50, 0.52, roll + 0.58), depth - DEPTH_LAYER * 2.0, Lighten(bloom, HIGHLIGHT_STEP * 2.0), ink, lineWidth, antialias);
+    Paint(canvas, length(local) - size * 0.07, depth - DEPTH_LAYER * 3.0, Lighten(bloom, HIGHLIGHT_STEP * 3.0), ink, lineWidth, antialias);
 }
 
-void DrawLavender(inout float3 color, float2 local, float size, float3 bloom, float3 ink, float lineWidth, float antialias)
+void DrawLavender(inout Canvas canvas, float2 local, float depth, float size, float3 bloom, float3 ink, float lineWidth, float antialias)
 {
     float spikeLength = size * 2.9;
     float beadRadius = size * 0.155;
 
-    Paint(color, SdSegment(local, float2(0.0, 0.0), float2(0.0, spikeLength * 0.35)) - lineWidth * 0.8, bloom, ink, lineWidth * 0.8, antialias);
+    Paint(canvas, SdSegment(local, float2(0.0, 0.0), float2(0.0, spikeLength * 0.35)) - lineWidth * 0.8, depth, bloom, ink, lineWidth * 0.8, antialias);
 
     [unroll]
     for (int i = 0; i < LAVENDER_BEADS; i++)
@@ -306,11 +399,11 @@ void DrawLavender(inout float3 color, float2 local, float size, float3 bloom, fl
         float side = (i % 2 == 0) ? -1.0 : 1.0;
         float2 center = float2(side * beadRadius * 0.62, spikeLength * (0.28 + 0.72 * t));
         float radius = beadRadius * (1.0 - 0.5 * t);
-        Paint(color, length(local - center) - radius, bloom, ink, lineWidth * 0.8, antialias);
+        Paint(canvas, length(local - center) - radius, depth - DEPTH_LAYER * (1.0 + i), bloom, ink, lineWidth * 0.8, antialias);
     }
 }
 
-void DrawGypsophila(inout float3 color, float2 local, float size, float3 background, float3 ink, float lineWidth, float antialias, float roll)
+void DrawGypsophila(inout Canvas canvas, float2 local, float depth, float size, float3 background, float3 ink, float lineWidth, float antialias, float roll)
 {
     float reach = size * 1.9;
 
@@ -321,109 +414,130 @@ void DrawGypsophila(inout float3 color, float2 local, float size, float3 backgro
         float angle = t * 1.9 + sin(roll + i * 1.7) * 0.14;
         float armLength = reach * (0.55 + 0.45 * frac(sin(roll + i * 4.1) * 43.7));
         float2 tip = float2(sin(angle), cos(angle)) * armLength;
+        float armDepth = depth - DEPTH_LAYER * (1.0 + i);
 
-        Paint(color, SdSegment(local, float2(0.0, 0.0), tip) - lineWidth * 0.3, ink, ink, lineWidth * 0.3, antialias);
-        Paint(color, length(local - tip) - size * 0.105, background, ink, lineWidth * 0.7, antialias);
-        Paint(color, length(local - tip - float2(size * 0.17, size * 0.09)) - size * 0.08, background, ink, lineWidth * 0.7, antialias);
-        Paint(color, length(local - tip + float2(size * 0.16, -size * 0.13)) - size * 0.08, background, ink, lineWidth * 0.7, antialias);
+        Paint(canvas, SdSegment(local, float2(0.0, 0.0), tip) - lineWidth * 0.3, armDepth, ink, ink, lineWidth * 0.3, antialias);
+        Paint(canvas, length(local - tip) - size * 0.105, armDepth - DEPTH_LAYER * 0.5, background, ink, lineWidth * 0.7, antialias);
+        Paint(canvas, length(local - tip - float2(size * 0.17, size * 0.09)) - size * 0.08, armDepth - DEPTH_LAYER * 0.5, background, ink, lineWidth * 0.7, antialias);
+        Paint(canvas, length(local - tip + float2(size * 0.16, -size * 0.13)) - size * 0.08, armDepth - DEPTH_LAYER * 0.5, background, ink, lineWidth * 0.7, antialias);
     }
 }
 
-void DrawEucalyptus(inout float3 color, float2 local, float size, float3 leaf, float3 ink, float lineWidth, float antialias)
+void DrawEucalyptus(inout Canvas canvas, float2 local, float depth, float size, float3 leaf, float3 ink, float lineWidth, float antialias)
 {
     float spineLength = size * 2.6;
-    Paint(color, SdSegment(local, float2(0.0, 0.0), float2(0.0, spineLength)) - lineWidth * 0.5, leaf, ink, lineWidth * 0.5, antialias);
+    Paint(canvas, SdSegment(local, float2(0.0, 0.0), float2(0.0, spineLength)) - lineWidth * 0.5, depth, leaf, ink, lineWidth * 0.5, antialias);
 
     [unroll]
     for (int i = 0; i < EUCALYPTUS_PAIRS; i++)
     {
         float t = (i + 0.35) / EUCALYPTUS_PAIRS;
-        float radius = size * 0.46 * (1.0 - 0.34 * t);
+        float radius = size * 0.34 * (1.0 - 0.30 * t);
         float2 spine = float2(0.0, spineLength * t);
-        Paint(color, SdEllipseApprox(local - spine - float2(radius * 0.86, 0.0), float2(radius, radius * 0.86)), leaf, ink, lineWidth, antialias);
-        Paint(color, SdEllipseApprox(local - spine + float2(radius * 0.86, 0.0), float2(radius, radius * 0.86)), leaf, ink, lineWidth, antialias);
+        float leafDepth = depth - DEPTH_LAYER * (1.0 + i);
+        Paint(canvas, SdEllipseApprox(local - spine - float2(radius * 0.86, 0.0), float2(radius, radius * 0.86)), leafDepth, leaf, ink, lineWidth, antialias);
+        Paint(canvas, SdEllipseApprox(local - spine + float2(radius * 0.86, 0.0), float2(radius, radius * 0.86)), leafDepth, leaf, ink, lineWidth, antialias);
     }
 }
 
-void DrawFern(inout float3 color, float2 local, float size, float3 leaf, float3 ink, float lineWidth, float antialias)
+void DrawFern(inout Canvas canvas, float2 local, float depth, float size, float3 leaf, float3 ink, float lineWidth, float antialias)
 {
     float spineLength = size * 2.8;
-    Paint(color, SdSegment(local, float2(0.0, 0.0), float2(0.0, spineLength)) - lineWidth * 0.6, leaf, ink, lineWidth * 0.6, antialias);
+    Paint(canvas, SdSegment(local, float2(0.0, 0.0), float2(0.0, spineLength)) - lineWidth * 0.6, depth, leaf, ink, lineWidth * 0.6, antialias);
 
     [unroll]
     for (int i = 0; i < FERN_LEAFLETS; i++)
     {
         float t = (i + 0.6) / FERN_LEAFLETS;
         float2 spine = float2(0.0, spineLength * t);
-        float leafletLength = size * 0.95 * (1.0 - 0.52 * t);
-        float2 radii = float2(leafletLength, size * 0.28);
+        float leafletLength = size * 0.80 * (1.0 - 0.52 * t);
+        float2 radii = float2(leafletLength, size * 0.21);
+        float leafDepth = depth - DEPTH_LAYER * (1.0 + i);
 
         float2 right = Rot(local - spine, -0.62) - float2(leafletLength, 0.0);
-        Paint(color, SdEllipseApprox(right, radii), leaf, ink, lineWidth * 0.9, antialias);
+        Paint(canvas, SdEllipseApprox(right, radii), leafDepth, leaf, ink, lineWidth * 0.9, antialias);
 
         float2 left = Rot(local - spine, -(TAU * 0.5 + 0.62)) - float2(leafletLength, 0.0);
-        Paint(color, SdEllipseApprox(left, radii), leaf, ink, lineWidth * 0.9, antialias);
+        Paint(canvas, SdEllipseApprox(left, radii), leafDepth, leaf, ink, lineWidth * 0.9, antialias);
     }
 }
 
-void DrawHead(inout float3 color, Stem stem, float2 p, float3 ink, float3 leaf, float3 background, float lineWidth, float antialias)
+void DrawHead(inout Canvas canvas, Stem stem, float2 p, float3 ink, float3 leaf, float3 background, float lineWidth, float antialias)
 {
     float2 offset = p - stem.tip;
-    if (dot(offset, offset) > stem.headSize * stem.headSize * HEAD_CULL_SCALE * HEAD_CULL_SCALE * 4.0)
+    float bound = stem.headSize * HEAD_CULL_SCALE * 2.0;
+    if (dot(offset, offset) > bound * bound)
     {
         return;
     }
 
-    float2 right = float2(stem.tangent.y, -stem.tangent.x);
-    float2 aligned = float2(dot(offset, right), dot(offset, stem.tangent));
+    // the card stands on the projected stem heading, then squashes along it
+    float2 right = float2(stem.heading.y, -stem.heading.x);
+    float2 aligned = float2(dot(offset, right), dot(offset, stem.heading) / stem.foreshorten);
+    float depth = stem.tipDepth;
 
     if (stem.species == SPECIES_ROSE)
     {
-        DrawRose(color, offset, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
+        DrawRose(canvas, aligned, depth, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
     }
     else if (stem.species == SPECIES_ANEMONE)
     {
-        DrawAnemone(color, offset, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
+        DrawAnemone(canvas, aligned, depth, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
     }
     else if (stem.species == SPECIES_DAHLIA)
     {
-        DrawDahlia(color, offset, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
+        DrawDahlia(canvas, aligned, depth, stem.headSize, stem.bloom, ink, lineWidth, antialias, stem.roll);
     }
     else if (stem.species == SPECIES_LAVENDER)
     {
-        DrawLavender(color, aligned, stem.headSize, stem.bloom, ink, lineWidth, antialias);
+        DrawLavender(canvas, aligned, depth, stem.headSize, stem.bloom, ink, lineWidth, antialias);
     }
     else if (stem.species == SPECIES_GYPSOPHILA)
     {
-        DrawGypsophila(color, aligned, stem.headSize, background, ink, lineWidth, antialias, stem.roll);
+        DrawGypsophila(canvas, aligned, depth, stem.headSize, background, ink, lineWidth, antialias, stem.roll);
     }
     else if (stem.species == SPECIES_EUCALYPTUS)
     {
-        DrawEucalyptus(color, aligned, stem.headSize, leaf, ink, lineWidth, antialias);
+        DrawEucalyptus(canvas, aligned, depth, stem.headSize, leaf, ink, lineWidth, antialias);
     }
     else
     {
-        DrawFern(color, aligned, stem.headSize, leaf, ink, lineWidth, antialias);
+        DrawFern(canvas, aligned, depth, stem.headSize, leaf, ink, lineWidth, antialias);
     }
 }
 
-void DrawRibbon(inout float3 color, float2 p, float2 bind, float3 ribbon, float3 ink, float lineWidth, float antialias)
+void DrawRibbon(inout Canvas canvas, float2 p, float3 bind, float3 ribbon, float3 ink, float lineWidth, float antialias)
 {
+    float3 viewBind = Orient(bind);
+    float2 center = Project(viewBind);
+    float width = _RibbonWidth * ViewScale(viewBind);
+
+    // the wrap always hides the stems it crosses, so it sits at the front of the tie
+    float bandDepth = -viewBind.z - _RibbonWidth;
+
+    // the knot rides a point on the tie and orbits with the bouquet
+    float knotAngle = radians(_KnotAngle);
+    float3 viewKnot = Orient(bind + float3(cos(knotAngle), 0.0, sin(knotAngle)) * _RibbonWidth);
+    float2 knotCenter = Project(viewKnot);
+    float knotScale = ViewScale(viewKnot);
+    float knotDepth = -viewKnot.z - DEPTH_LAYER;
+
     [unroll]
     for (int i = 0; i < RIBBON_TAILS; i++)
     {
         float sway = (i == 0) ? -1.0 : 0.45;
-        float2 start = bind + float2(-_RibbonWidth * (0.18 + 0.30 * i), -_RibbonWidth * 0.30);
-        float2 control = start + float2(sway * _TailLength * 0.30, -_TailLength * 0.55);
-        float2 end = start + float2(sway * _TailLength * 0.16 - _TailLength * 0.10, -_TailLength);
-        Paint(color, SdCurve(p, start, control, end) - _RibbonWidth * 0.26, ribbon, ink, lineWidth, antialias);
+        float tail = _TailLength * knotScale;
+        float2 start = knotCenter + float2(-width * (0.18 + 0.30 * i), -width * 0.30);
+        float2 control = start + float2(sway * tail * 0.30, -tail * 0.55);
+        float2 end = start + float2(sway * tail * 0.16 - tail * 0.10, -tail);
+        Paint(canvas, SdCurveAt(p, start, control, end).x - width * 0.26, knotDepth, ribbon, ink, lineWidth, antialias);
     }
 
-    float2 band = Rot(p - bind, radians(6.0));
-    Paint(color, SdRoundBox(band, float2(_RibbonWidth, _RibbonWidth * 0.42), _RibbonWidth * 0.10), ribbon, ink, lineWidth, antialias);
+    float2 band = Rot(p - center, radians(6.0));
+    Paint(canvas, SdRoundBox(band, float2(width, width * 0.42), width * 0.10), bandDepth, ribbon, ink, lineWidth, antialias);
 
-    float2 knot = Rot(p - bind - float2(-_RibbonWidth * 0.72, _RibbonWidth * 0.34), radians(-58.0));
-    Paint(color, SdRoundBox(knot, float2(_RibbonWidth * 0.40, _RibbonWidth * 0.24), _RibbonWidth * 0.10), ribbon, ink, lineWidth, antialias);
+    float2 knot = Rot(p - knotCenter - float2(0.0, width * 0.34), radians(-58.0));
+    Paint(canvas, SdRoundBox(knot, float2(width * 0.40, width * 0.24), width * 0.10), knotDepth - DEPTH_LAYER, ribbon, ink, lineWidth, antialias);
 }
 
 float4 Fragment(Varyings input) : SV_Target
@@ -441,20 +555,12 @@ float4 Fragment(Varyings input) : SV_Target
     float3 leaf = PaletteColor(SLOT_LEAF);
     float3 ribbon = PaletteColor(SLOT_RIBBON);
 
-    float3 color = background;
-    float2 bind = float2(0.0, _BindHeight);
-    int count = clamp((int)_StemCount, LAYER_COUNT, MAX_STEMS);
+    Canvas canvas;
+    canvas.color = background;
+    canvas.depth = BACKGROUND_DEPTH;
 
-    for (int cut = 0; cut < MAX_STEMS; cut++)
-    {
-        if (cut >= count)
-        {
-            break;
-        }
-
-        Stem stem = BuildStem(cut, count, bind);
-        Paint(color, SdSegment(p, bind, stem.cutEnd) - stemWidth, stemColor, ink, lineWidth, antialias);
-    }
+    float3 bind = float3(0.0, _BindHeight, 0.0);
+    int count = clamp((int)_StemCount, RING_COUNT, MAX_STEMS);
 
     for (int i = 0; i < MAX_STEMS; i++)
     {
@@ -465,19 +571,19 @@ float4 Fragment(Varyings input) : SV_Target
 
         Stem stem = BuildStem(i, count, bind);
 
-        float2 low = min(min(stem.anchor, stem.control), stem.tip) - STEM_CULL_MARGIN;
-        float2 high = max(max(stem.anchor, stem.control), stem.tip) + STEM_CULL_MARGIN;
-        if (all(p > low) && all(p < high))
-        {
-            Paint(color, SdCurve(p, stem.anchor, stem.control, stem.tip) - stemWidth, stemColor, ink, lineWidth, antialias);
-        }
+        float cutDistance = SdSegment(p, stem.anchor, stem.cutEnd) - stemWidth;
+        Paint(canvas, cutDistance, max(stem.anchorDepth, stem.cutDepth), stemColor, ink, lineWidth, antialias);
 
-        DrawHead(color, stem, p, ink, leaf, background, lineWidth, antialias);
+        float2 hit = SdCurveAt(p, stem.anchor, stem.control, stem.tip);
+        float stemDepth = lerp(stem.anchorDepth, stem.tipDepth, hit.y);
+        Paint(canvas, hit.x - stemWidth, stemDepth, stemColor, ink, lineWidth, antialias);
+
+        DrawHead(canvas, stem, p, ink, leaf, background, lineWidth, antialias);
     }
 
-    DrawRibbon(color, p, bind, ribbon, ink, lineWidth, antialias);
+    DrawRibbon(canvas, p, bind, ribbon, ink, lineWidth, antialias);
 
-    return float4(color, 1.0);
+    return float4(canvas.color, 1.0);
 }
 
 Varyings Vertex(Attributes input)
