@@ -61,6 +61,8 @@ public static class BouquetGeometry
 
     // a loose asymmetric arc, not a ring. offsets are lateral, height, depth, scaled
     // by stem length so the dial still moves the whole bouquet
+    private static readonly Vector3 TowardViewer = Vector3.back;
+
     private static readonly Vector3[] DominantTargets =
     {
         new Vector3(-0.34f, 0.28f,  0.20f),
@@ -165,7 +167,8 @@ public static class BouquetGeometry
                 (BouquetFlora.Hash(index, 15, seed) - 0.5f) * 0.14f,
                 (BouquetFlora.Hash(index, 16, seed) - 0.5f) * 0.12f,
                 (BouquetFlora.Hash(index, 17, seed) - 0.5f) * 0.10f);
-            return (staged + jitter) * scale;
+            Vector3 offset = (staged + jitter) * scale;
+            return new Vector3(offset.x, offset.y, 0.0f) + TowardViewer * offset.z;
         }
 
         float across = (slot + 0.15f + 0.70f * BouquetFlora.Hash(index, 0, seed)) / count - 0.5f;
@@ -179,7 +182,7 @@ public static class BouquetGeometry
         float height = Mathf.Lerp(band.heightLow, band.heightHigh, BouquetFlora.Hash(index, 4, seed));
 
         return new Vector3(Mathf.Cos(azimuth) * radius, height, Mathf.Sin(azimuth) * radius) * scale
-             + Vector3.forward * band.depth * settings.depthSpread;
+             + TowardViewer * band.depth * settings.depthSpread;
     }
 
     // filler is connective tissue: it goes where two major heads leave a hole, set
@@ -201,10 +204,11 @@ public static class BouquetGeometry
 
             Vector3 gap = Vector3.Lerp(bloomTips[a], bloomTips[b], 0.35f + 0.30f * BouquetFlora.Hash(index, 23, settings.seed));
             gap -= bind;
-            gap += new Vector3(
+            gap += (new Vector3(
                 (BouquetFlora.Hash(index, 24, settings.seed) - 0.5f) * 0.16f,
                 (BouquetFlora.Hash(index, 25, settings.seed) - 0.5f) * 0.20f + 0.06f,
-                -0.10f - 0.18f * BouquetFlora.Hash(index, 26, settings.seed)) * settings.stemLength;
+                0.0f)
+                - TowardViewer * (0.10f + 0.18f * BouquetFlora.Hash(index, 26, settings.seed))) * settings.stemLength;
 
             plan.Add(MakeStalk(settings, palette, bind, index, Role.Filler, band, gap));
             index++;
