@@ -28,9 +28,11 @@ public sealed class MeshBuffer
     private readonly List<Color> colors = new List<Color>();
     private readonly List<Vector4> strokes = new List<Vector4>();
     private readonly List<Vector4> inks = new List<Vector4>();
+    private readonly List<Vector3> facings = new List<Vector3>();
     private readonly List<int> indices = new List<int>();
 
     private Color ink = Color.black;
+    private Vector3 facing = Vector3.zero;
 
     public int VertexCount => positions.Count;
 
@@ -39,6 +41,11 @@ public sealed class MeshBuffer
     public void SetInk(Color colour)
     {
         ink = colour;
+    }
+
+    public void SetFacing(Vector3 faceNormal)
+    {
+        facing = faceNormal;
     }
 
     // the project renders linear, and every palette value here was eyedropped off
@@ -54,6 +61,7 @@ public sealed class MeshBuffer
         strokes.Add(new Vector4((float)kind, width, outlineWeight, depthBias));
         Color line = ink.linear;
         inks.Add(new Vector4(line.r, line.g, line.b, 1.0f));
+        facings.Add(facing);
     }
 
     public void AddTriangle(int a, int b, int c)
@@ -79,6 +87,7 @@ public sealed class MeshBuffer
         mesh.SetColors(colors);
         mesh.SetUVs(0, strokes);
         mesh.SetUVs(1, inks);
+        mesh.SetUVs(2, facings);
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateBounds();
     }

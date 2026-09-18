@@ -126,6 +126,7 @@ public static class BouquetShapes
         Color fill, float outlineWeight, float depthBias)
     {
         int first = mesh.VertexCount;
+        mesh.SetFacing(frame.MultiplyVector(Vector3.forward).normalized);
         mesh.AddVertex(frame.MultiplyPoint3x4(centre), Vector3.zero, Vector4.zero, fill, StrokeKind.Card, 0.0f, 0.0f, depthBias);
 
         for (int i = 0; i < rim.Count; i++)
@@ -144,6 +145,8 @@ public static class BouquetShapes
             mesh.AddVertex(frame.MultiplyPoint3x4(point), frame.MultiplyVector(outward).normalized, Vector4.zero,
                 fill, StrokeKind.Card, 0.0f, outlineWeight, depthBias);
         }
+
+        mesh.SetFacing(Vector3.zero);
 
         for (int i = 0; i < rim.Count; i++)
         {

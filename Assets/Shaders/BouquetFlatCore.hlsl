@@ -6,6 +6,9 @@
 #define KIND_CARD 0.5
 #define KIND_STEM 1.5
 #define PROBE_STEP 0.002
+#define EDGE_ON_FLOOR 0.22
+#define EDGE_ON_RANGE 0.45
+#define EDGE_ON_MIN_COSINE 0.12
 
 CBUFFER_START(UnityPerMaterial)
     float _LineWidth;
@@ -24,6 +27,7 @@ struct Attributes
     float4 color : COLOR;
     float4 stroke : TEXCOORD0;
     float4 ink : TEXCOORD1;
+    float3 facing : TEXCOORD2;
 };
 
 struct Varyings
@@ -49,6 +53,19 @@ float StrokeWobble(float3 positionOS)
 {
     float noise = frac(sin(dot(positionOS, float3(12.9898, 78.233, 37.719))) * 43758.5453);
     return 1.0 + (noise - 0.5) * _OutlineWobble;
+}
+
+// how squarely a card faces the eye. strokes and billboards carry no facing and
+// count as face on
+float FacingCosine(float3 facingOS, float3 eyeDirection)
+{
+    if (dot(facingOS, facingOS) < 0.25)
+    {
+        return 1.0;
+    }
+
+    float3 facingWS = normalize(TransformObjectToWorldDir(facingOS, false));
+    return abs(dot(facingWS, eyeDirection));
 }
 
 Varyings Vertex(Attributes input)
@@ -91,20 +108,25 @@ Varyings Vertex(Attributes input)
     float3 eyeDirection = toEye / eyeDistance;
     positionWS += eyeDirection * depthBias;
 
-    // a billboard faces the camera, so its depth slope is nil and Offset buys almost
-    // nothing: without seating the ink a fixed distance behind the fill the two
-    // planes fight and the petal fills up with stipple
+    float width = baseWidth;
 #ifdef BOUQUET_INK_PASS
-    positionWS -= eyeDirection * _InkRecess;
+    // a card turned edge on shrinks to a sliver narrower than its own outline, and
+    // a cupped flower is full of them: without the fade every fold fills with ink
+    float facingCosine = FacingCosine(input.facing, eyeDirection);
+    float attenuation = clamp(_OutlineDistance / eyeDistance, _OutlineFloor, _OutlineCeiling);
+    width += _LineWidth * outlineWeight * attenuation * StrokeWobble(input.positionOS.xyz)
+           * lerp(EDGE_ON_FLOOR, 1.0, saturate(facingCosine / EDGE_ON_RANGE));
+
+    // the ink is widened on screen but keeps its depth, so on a steep card the
+    // widened rim climbs in front of the fill. seating it back by the line's own
+    // width times the slope keeps the fill on top; the fixed recess covers the
+    // face on case, where the two planes would otherwise fight into stipple
+    float lineWorld = width * eyeDistance * 2.0 / abs(UNITY_MATRIX_P._m11);
+    float slope = sqrt(saturate(1.0 - facingCosine * facingCosine)) / max(facingCosine, EDGE_ON_MIN_COSINE);
+    positionWS -= eyeDirection * (_InkRecess + lineWorld * slope);
 #endif
 
     float4 clip = TransformWorldToHClip(positionWS);
-
-    float width = baseWidth;
-#ifdef BOUQUET_INK_PASS
-    float attenuation = clamp(_OutlineDistance / eyeDistance, _OutlineFloor, _OutlineCeiling);
-    width += _LineWidth * outlineWeight * attenuation * StrokeWobble(input.positionOS.xyz);
-#endif
 
     if (width > 0.0 && dot(expandWS, expandWS) > 1e-12)
     {
