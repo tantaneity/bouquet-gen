@@ -13,6 +13,7 @@ CBUFFER_START(UnityPerMaterial)
     float _OutlineFloor;
     float _OutlineCeiling;
     float _OutlineWobble;
+    float _InkRecess;
 CBUFFER_END
 
 struct Attributes
@@ -87,7 +88,15 @@ Varyings Vertex(Attributes input)
     // on top of the leaf it belongs to, without a second depth trick per species
     float3 toEye = GetCameraPositionWS() - positionWS;
     float eyeDistance = max(length(toEye), 1e-4);
-    positionWS += toEye / eyeDistance * depthBias;
+    float3 eyeDirection = toEye / eyeDistance;
+    positionWS += eyeDirection * depthBias;
+
+    // a billboard faces the camera, so its depth slope is nil and Offset buys almost
+    // nothing: without seating the ink a fixed distance behind the fill the two
+    // planes fight and the petal fills up with stipple
+#ifdef BOUQUET_INK_PASS
+    positionWS -= eyeDirection * _InkRecess;
+#endif
 
     float4 clip = TransformWorldToHClip(positionWS);
 

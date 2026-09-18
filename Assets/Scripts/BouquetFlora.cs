@@ -111,7 +111,7 @@ public static class BouquetFlora
             centre = BouquetShapes.Rotate(new Vector2(length * scale * 0.45f, 0.0f), turn);
 
             BouquetShapes.AddBillboardShape(mesh, tip, centre, rim, fill, outlineWeight,
-                layer + p * BouquetShapes.LayerStep * 0.35f);
+                layer + p * BouquetShapes.LayerStep * 0.60f);
         }
     }
 
@@ -123,10 +123,10 @@ public static class BouquetFlora
         {
             float wiggle = Hash(salt + p, 31, p * 7 + 3);
             float turn = p / (float)petals * Mathf.PI * 2.0f + phase + (wiggle - 0.5f) * rollJitter;
-            Vector2 from = BouquetShapes.Rotate(new Vector2(length * 0.18f, 0.0f), turn);
-            Vector2 to = BouquetShapes.Rotate(new Vector2(length * 0.74f, 0.0f), turn);
+            Vector2 from = BouquetShapes.Rotate(new Vector2(length * 0.34f, 0.0f), turn);
+            Vector2 to = BouquetShapes.Rotate(new Vector2(length * 0.62f, 0.0f), turn);
             BouquetShapes.AddBillboardLine(mesh, tip, new[] { from, to }, ink, detailWidth,
-                layer + p * BouquetShapes.LayerStep * 0.35f + BouquetShapes.LayerStep * 0.2f);
+                layer + p * BouquetShapes.LayerStep * 0.60f + BouquetShapes.LayerStep * 0.25f);
         }
     }
 

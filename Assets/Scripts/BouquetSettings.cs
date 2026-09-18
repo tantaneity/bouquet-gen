@@ -79,8 +79,15 @@ public struct BouquetPalette
     public Color Line(Color fill, float blend)
     {
         Color.RGBToHSV(fill, out float h, out float s, out float v);
-        Color deep = Color.HSVToRGB(h, Mathf.Clamp01(s * 1.08f), Mathf.Clamp01(v * 0.34f));
-        return Color.Lerp(ink, deep, Mathf.Clamp01(blend));
+
+        // two pulls at once. a light fill can be darkened freely into a line; a dark
+        // one cannot, or the line goes black, yet it still needs a guaranteed gap in
+        // value or the flower merges into one mass
+        float drop = Mathf.Lerp(0.62f, 0.34f, v);
+        float target = Mathf.Max(Mathf.Min(v * drop, v - 0.16f), 0.05f);
+        float keep = Mathf.Lerp(0.22f, 0.0f, v);
+        Color deep = Color.HSVToRGB(h, Mathf.Clamp01(s * 1.08f), target);
+        return Color.Lerp(ink, deep, Mathf.Clamp01(blend + keep));
     }
 
     public Color Vary(Color color, float saturationRoll, float valueRoll, float amount)

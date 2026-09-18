@@ -7,6 +7,7 @@ Shader "Custom/BouquetFlat"
         _OutlineFloor ("Outline Thin Limit", Range(0.2, 1)) = 0.66
         _OutlineCeiling ("Outline Thick Limit", Range(1, 2)) = 1.22
         _OutlineWobble ("Outline Wobble", Range(0, 0.6)) = 0.22
+        _InkRecess ("Ink Recess", Range(0, 0.02)) = 0.0007
     }
 
     SubShader
