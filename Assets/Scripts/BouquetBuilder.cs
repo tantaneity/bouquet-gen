@@ -4,7 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public sealed class BouquetBuilder : MonoBehaviour
 {
-    [Range(0, 3)] public int palette = 2;
+    [Range(0.0f, 3.0f)] public float palette = 2.0f;
     public BouquetSettings settings = new BouquetSettings();
 
     private Mesh mesh;
@@ -28,7 +28,7 @@ public sealed class BouquetBuilder : MonoBehaviour
             mesh.hideFlags = HideFlags.DontSave;
         }
 
-        BouquetPalette colors = BouquetPalette.Preset(palette);
+        BouquetPalette colors = BouquetPalette.At(palette);
 
         MeshBuffer buffer = new MeshBuffer();
         BouquetGeometry.Build(buffer, settings, colors);

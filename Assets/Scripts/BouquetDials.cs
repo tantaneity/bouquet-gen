@@ -29,42 +29,50 @@ public struct Dial
 
 public static class BouquetDialSet
 {
-    private const int TrackSteps = 48;
-    private const float HandleRadius = 0.052f;
-    private const float TrackWidth = 0.0022f;
+    private const int TrackSteps = 64;
+    private const float HandleRadius = 0.036f;
+    private const float TrackWidth = 0.0036f;
 
+    private const float TieRadius = 0.24f;
+    private const float TieSweep = 330.0f;
+    private const float TieStartAngle = 200.0f;
+    private const float TieRise = 0.06f;
+
+    private static readonly Color TrackInk = new Color(0.66f, 0.68f, 0.70f, 1.0f);
+
+    // the top arc, the two side arcs and the ground ring are laid out after the
+    // reference: side arcs sit on the same sphere as the top one, turned towards the viewer
     public static Dial[] Defaults()
     {
         return new[]
         {
             new Dial
             {
-                label = "palette", center = new Vector3(0.0f, 0.16f, 0.0f), planeEuler = new Vector3(90.0f, 0.0f, 0.0f),
-                radius = 0.86f, startAngle = 8.0f, sweepAngle = 164.0f, value = 0.66f
+                label = "palette", center = new Vector3(0.0f, 0.08f, 0.0f), planeEuler = new Vector3(90.0f, 0.0f, 0.0f),
+                radius = 0.76f, startAngle = -165.0f, sweepAngle = 135.0f, value = 0.66f
             },
             new Dial
             {
-                label = "density", center = new Vector3(0.0f, 0.06f, 0.0f), planeEuler = new Vector3(90.0f, 38.0f, 0.0f),
-                radius = 0.70f, startAngle = 128.0f, sweepAngle = 118.0f, value = 0.60f
+                label = "density", center = new Vector3(0.0f, 0.08f, 0.0f), planeEuler = new Vector3(90.0f, 35.0f, 0.0f),
+                radius = 0.76f, startAngle = 136.0f, sweepAngle = 64.0f, value = 0.60f
             },
             new Dial
             {
-                label = "spread", center = new Vector3(0.0f, -0.40f, 0.0f), planeEuler = new Vector3(0.0f, 0.0f, 0.0f),
-                radius = 0.58f, startAngle = 186.0f, sweepAngle = 198.0f, value = 0.45f
+                label = "spread", center = new Vector3(-0.10f, -0.60f, 0.05f), planeEuler = new Vector3(0.0f, 0.0f, 0.0f),
+                radius = 0.55f, startAngle = 95.0f, sweepAngle = 235.0f, value = 0.45f
             },
             new Dial
             {
-                label = "length", center = new Vector3(0.0f, -0.33f, 0.0f), planeEuler = new Vector3(6.0f, 0.0f, 16.0f),
-                radius = 0.19f, startAngle = 0.0f, sweepAngle = 300.0f, value = 0.52f
+                label = "length", center = new Vector3(0.0f, 0.08f, 0.0f), planeEuler = new Vector3(90.0f, -35.0f, 0.0f),
+                radius = 0.76f, startAngle = 44.0f, sweepAngle = -68.0f, value = 0.52f
             }
         };
     }
 
-    public static void BuildMesh(MeshBuffer mesh, Dial[] dials, Color track, Color handle)
+    public static void BuildMesh(MeshBuffer mesh, Dial[] dials, Vector3 tie, Color track, Color handle)
     {
         Vector3[] points = new Vector3[TrackSteps + 1];
-
-        BouquetGeometry.SetDialInk(mesh, new Color(0.55f, 0.58f, 0.60f, 1.0f));
+        mesh.SetInk(TrackInk);
 
         foreach (Dial dial in dials)
         {
@@ -73,9 +81,28 @@ public static class BouquetDialSet
                 points[s] = dial.PointAt(s / (float)TrackSteps);
             }
 
-            BouquetGeometry.AddRibbon(mesh, points, track, TrackWidth);
-            BouquetGeometry.AddHandle(mesh, dial.Handle, HandleRadius, handle);
+            BouquetShapes.AddRibbon(mesh, points, track, TrackWidth, Outline.Silhouette, 0.0f);
         }
+
+        AddTieRing(mesh, points, tie, track);
+
+        foreach (Dial dial in dials)
+        {
+            BouquetShapes.AddBillboardDisc(mesh, dial.Handle, HandleRadius, handle, Outline.Silhouette, 0.0f);
+        }
+    }
+
+    // the loose loop around the tie carries no handle, it only marks where the stems meet
+    private static void AddTieRing(MeshBuffer mesh, Vector3[] points, Vector3 tie, Color track)
+    {
+        for (int s = 0; s <= TrackSteps; s++)
+        {
+            float t = s / (float)TrackSteps;
+            float angle = (TieStartAngle + TieSweep * t) * Mathf.Deg2Rad;
+            points[s] = tie + new Vector3(Mathf.Cos(angle) * TieRadius, TieRise * (t - 0.5f), Mathf.Sin(angle) * TieRadius);
+        }
+
+        BouquetShapes.AddRibbon(mesh, points, track, TrackWidth, Outline.Silhouette, 0.0f);
     }
 
     public static int Pick(Dial[] dials, Camera camera, Vector2 pointer, float pixelRadius)
@@ -136,15 +163,22 @@ public static class BouquetDialSet
 
     public static void Apply(Dial[] dials, BouquetBuilder builder)
     {
-        builder.palette = Mathf.Clamp(Mathf.RoundToInt(dials[0].value * 3.0f), 0, 3);
+        builder.palette = Resolve(dials, builder.settings);
+    }
 
+    // writes the dial-driven fields into target and returns the palette they pick,
+    // so the controller can ease towards them instead of jumping
+    public static float Resolve(Dial[] dials, BouquetSettings target)
+    {
         // density drives every quota plus how much the layers separate, so the
         // silhouette stays put while the bouquet actually fills in
-        builder.settings.density = dials[1].value;
-        builder.settings.depthSpread = Mathf.Lerp(0.34f, 0.58f, dials[1].value);
-        builder.settings.colourVariation = Mathf.Lerp(0.18f, 0.30f, dials[1].value);
+        target.density = dials[1].value;
+        target.depthSpread = Mathf.Lerp(0.34f, 0.58f, dials[1].value);
+        target.colourVariation = Mathf.Lerp(0.18f, 0.30f, dials[1].value);
 
-        builder.settings.spreadGain = Mathf.Lerp(0.80f, 1.75f, dials[2].value);
-        builder.settings.stemLength = Mathf.Lerp(0.74f, 1.24f, dials[3].value);
+        target.spreadGain = Mathf.Lerp(0.80f, 1.75f, dials[2].value);
+        target.stemLength = Mathf.Lerp(0.74f, 1.24f, dials[3].value);
+
+        return Mathf.Round(dials[0].value * (BouquetPalette.PresetCount - 1));
     }
 }

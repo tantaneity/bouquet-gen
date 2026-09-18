@@ -61,7 +61,7 @@ public static class BouquetCapture
         {
             controller.dialRenderer.enabled = GetIntArgument("-hideDials", 0) == 0;
         }
-        camera.backgroundColor = BouquetPalette.Preset(builder.palette).background;
+        camera.backgroundColor = BouquetPalette.At(builder.palette).background;
 
         RenderTexture target = new RenderTexture(size, size, DepthBits, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
         target.antiAliasing = AntiAliasingSamples;
@@ -142,7 +142,7 @@ public static class BouquetCapture
 
             if (name == "palette")
             {
-                builder.palette = int.Parse(raw, CultureInfo.InvariantCulture);
+                builder.palette = float.Parse(raw, CultureInfo.InvariantCulture);
                 Debug.Log($"BOUQUET_CAPTURE: override palette={raw}");
                 continue;
             }

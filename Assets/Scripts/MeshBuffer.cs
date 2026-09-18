@@ -48,8 +48,15 @@ public sealed class MeshBuffer
     private readonly List<Vector4> shadings = new List<Vector4>();
     private readonly List<int> indices = new List<int>();
 
+    private readonly bool isShaded;
+
     private Color ink = Color.black;
     private Vector3 facing = Vector3.zero;
+
+    public MeshBuffer(bool isShaded = true)
+    {
+        this.isShaded = isShaded;
+    }
 
     public int VertexCount => positions.Count;
 
@@ -79,7 +86,7 @@ public sealed class MeshBuffer
         Color line = ink.linear;
         inks.Add(new Vector4(line.r, line.g, line.b, 1.0f));
         facings.Add(facing);
-        shadings.Add(shading);
+        shadings.Add(isShaded ? shading : Shading.Flat);
     }
 
     public void AddTriangle(int a, int b, int c)

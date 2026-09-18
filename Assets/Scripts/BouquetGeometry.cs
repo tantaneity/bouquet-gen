@@ -123,7 +123,7 @@ public static class BouquetGeometry
     private static List<Stalk> BuildPlan(BouquetSettings settings, BouquetPalette palette, Vector3 bind)
     {
         List<Stalk> plan = new List<Stalk>();
-        List<Vector3> bloomTips = new List<Vector3>();
+        List<GrownTip> bloomTips = new List<GrownTip>();
         int index = 0;
 
         for (int role = 0; role < RoleCount; role++)
@@ -134,28 +134,51 @@ public static class BouquetGeometry
             }
 
             Band band = Bands[role];
-            int count = Mathf.RoundToInt(Mathf.Lerp(band.countLow, band.countHigh, settings.density));
+            float quota = Quota(band, settings.density);
 
-            for (int slot = 0; slot < count; slot++)
+            for (int slot = 0; slot < band.countHigh; slot++, index++)
             {
-                Vector3 target = TargetFor(settings, (Role)role, band, slot, count, index);
-                Stalk stalk = MakeStalk(settings, palette, bind, index, (Role)role, band, target);
-                plan.Add(stalk);
+                float growth = Growth(quota, slot);
+                Vector3 target = TargetFor(settings, (Role)role, band, slot, Mathf.Max(quota, 1.0f), index);
+                Stalk stalk = MakeStalk(settings, palette, bind, index, (Role)role, band, target * growth);
+                stalk.headSize *= growth;
 
                 if (BouquetFlora.IsBloom(stalk.species) && role <= (int)Role.Medium)
                 {
-                    bloomTips.Add(stalk.tip);
+                    bloomTips.Add(new GrownTip { tip = stalk.tip, growth = growth });
                 }
 
-                index++;
+                if (growth > 0.0f)
+                {
+                    plan.Add(stalk);
+                }
             }
         }
 
-        AddConnectors(plan, settings, palette, bind, bloomTips, ref index);
+        AddConnectors(plan, settings, palette, bind, bloomTips, index);
         return plan;
     }
 
-    private static Vector3 TargetFor(BouquetSettings settings, Role role, Band band, int slot, int count, int index)
+    private struct GrownTip
+    {
+        public Vector3 tip;
+        public float growth;
+    }
+
+    // every slot up to the band's ceiling keeps its index whatever the density, so
+    // a density change grows or shrinks the last stems instead of reshuffling the
+    // species of everything that comes after them
+    private static float Quota(Band band, float density)
+    {
+        return Mathf.Lerp(band.countLow, band.countHigh, density);
+    }
+
+    private static float Growth(float quota, int slot)
+    {
+        return Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(quota - slot));
+    }
+
+    private static Vector3 TargetFor(BouquetSettings settings, Role role, Band band, int slot, float count, int index)
     {
         int seed = settings.seed;
         float scale = settings.stemLength;
@@ -188,21 +211,27 @@ public static class BouquetGeometry
     // filler is connective tissue: it goes where two major heads leave a hole, set
     // back so it reads behind them, not scattered on its own ring
     private static void AddConnectors(List<Stalk> plan, BouquetSettings settings, BouquetPalette palette,
-        Vector3 bind, List<Vector3> bloomTips, ref int index)
+        Vector3 bind, List<GrownTip> bloomTips, int index)
     {
         Band band = Bands[(int)Role.Filler];
-        int count = Mathf.RoundToInt(Mathf.Lerp(band.countLow, band.countHigh, settings.density));
+        float quota = Quota(band, settings.density);
         if (bloomTips.Count < 2)
         {
             return;
         }
 
-        for (int slot = 0; slot < count; slot++)
+        for (int slot = 0; slot < band.countHigh; slot++, index++)
         {
             int a = Mathf.FloorToInt(BouquetFlora.Hash(index, 18, settings.seed) * (bloomTips.Count - 0.001f));
             int b = (a + 1 + Mathf.FloorToInt(BouquetFlora.Hash(index, 19, settings.seed) * (bloomTips.Count - 1.001f))) % bloomTips.Count;
 
-            Vector3 gap = Vector3.Lerp(bloomTips[a], bloomTips[b], 0.35f + 0.30f * BouquetFlora.Hash(index, 23, settings.seed));
+            float growth = Growth(quota, slot) * Mathf.Min(bloomTips[a].growth, bloomTips[b].growth);
+            if (growth <= 0.0f)
+            {
+                continue;
+            }
+
+            Vector3 gap = Vector3.Lerp(bloomTips[a].tip, bloomTips[b].tip, 0.35f + 0.30f * BouquetFlora.Hash(index, 23, settings.seed));
             gap -= bind;
             gap += (new Vector3(
                 (BouquetFlora.Hash(index, 24, settings.seed) - 0.5f) * 0.16f,
@@ -210,8 +239,9 @@ public static class BouquetGeometry
                 0.0f)
                 - TowardViewer * (0.10f + 0.18f * BouquetFlora.Hash(index, 26, settings.seed))) * settings.stemLength;
 
-            plan.Add(MakeStalk(settings, palette, bind, index, Role.Filler, band, gap));
-            index++;
+            Stalk stalk = MakeStalk(settings, palette, bind, index, Role.Filler, band, gap * growth);
+            stalk.headSize *= growth;
+            plan.Add(stalk);
         }
     }
 
@@ -326,20 +356,5 @@ public static class BouquetGeometry
             Vector3 end = start + sideways * sway * settings.tailLength * 0.18f - Vector3.up * settings.tailLength;
             BouquetShapes.AddCubicRibbon(mesh, start, low, high, end, palette.ribbon, settings.stemWidth * 2.4f, Outline.Contour);
         }
-    }
-
-    public static void AddRibbon(MeshBuffer mesh, IReadOnlyList<Vector3> points, Color fill, float width)
-    {
-        BouquetShapes.AddRibbon(mesh, points, fill, width, Outline.Contour, 0.0f);
-    }
-
-    public static void SetDialInk(MeshBuffer mesh, Color colour)
-    {
-        mesh.SetInk(colour);
-    }
-
-    public static void AddHandle(MeshBuffer mesh, Vector3 position, float radius, Color fill)
-    {
-        BouquetShapes.AddBillboardDisc(mesh, position, radius, fill, Outline.Contour, 0.0f);
     }
 }

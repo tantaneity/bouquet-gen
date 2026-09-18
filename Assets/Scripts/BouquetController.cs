@@ -10,6 +10,7 @@ public sealed class BouquetController : MonoBehaviour
     private const float OrbitPerPixel = 0.32f;
     private const float PitchLimit = 62.0f;
     private const float IdleHideDelay = 2.4f;
+    private const float EaseSharpness = 6.0f;
 
     public BouquetBuilder builder;
     public MeshFilter dialMesh;
@@ -27,6 +28,8 @@ public sealed class BouquetController : MonoBehaviour
     private Vector2 lastPointer;
     private float idleSeconds;
     private Mesh dialGeometry;
+    private BouquetSettings easeTarget;
+    private float paletteTarget;
 
     private void OnEnable()
     {
@@ -42,8 +45,15 @@ public sealed class BouquetController : MonoBehaviour
 
     private void Update()
     {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
+        EaseBouquet();
+
         Mouse mouse = Mouse.current;
-        if (mouse == null || !Application.isPlaying)
+        if (mouse == null)
         {
             return;
         }
@@ -109,9 +119,38 @@ public sealed class BouquetController : MonoBehaviour
             return;
         }
 
-        BouquetDialSet.Apply(dials, builder);
-        builder.Rebuild();
+        if (!Application.isPlaying)
+        {
+            BouquetDialSet.Apply(dials, builder);
+            builder.Rebuild();
+            RebuildDials();
+            return;
+        }
+
+        easeTarget = builder.settings.Clone();
+        paletteTarget = BouquetDialSet.Resolve(dials, easeTarget);
         RebuildDials();
+    }
+
+    private void EaseBouquet()
+    {
+        if (easeTarget == null || builder == null)
+        {
+            return;
+        }
+
+        float blend = 1.0f - Mathf.Exp(-Time.deltaTime * EaseSharpness);
+        bool isMoving = builder.settings.EaseToward(easeTarget, blend);
+        builder.palette = BouquetSettings.Ease(builder.palette, paletteTarget, blend, ref isMoving);
+
+        if (isMoving)
+        {
+            builder.Rebuild();
+        }
+        else
+        {
+            easeTarget = null;
+        }
     }
 
     public void RebuildDials()
@@ -127,12 +166,13 @@ public sealed class BouquetController : MonoBehaviour
             dialGeometry.hideFlags = HideFlags.DontSave;
         }
 
-        MeshBuffer buffer = new MeshBuffer();
-        BouquetDialSet.BuildMesh(buffer, dials, DialTrack, DialHandle);
+        MeshBuffer buffer = new MeshBuffer(isShaded: false);
+        Vector3 tie = builder != null ? new Vector3(0.0f, builder.settings.bindHeight, 0.0f) : Vector3.zero;
+        BouquetDialSet.BuildMesh(buffer, dials, tie, DialTrack, DialHandle);
         buffer.WriteTo(dialGeometry);
         dialMesh.sharedMesh = dialGeometry;
     }
 
-    private static readonly Color DialTrack = new Color(0.72f, 0.74f, 0.76f, 1.0f);
+    private static readonly Color DialTrack = new Color(0.86f, 0.87f, 0.88f, 1.0f);
     private static readonly Color DialHandle = new Color(1.0f, 1.0f, 1.0f, 1.0f);
 }

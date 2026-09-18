@@ -35,11 +35,44 @@ public sealed class BouquetSettings
     [Header("Line")]
     [Range(0.001f, 0.02f)] public float stemWidth = 0.0027f;
     [Range(0.0002f, 0.004f)] public float detailWidth = 0.0008f;
+
+    private const float Settled = 1e-4f;
+
+    public BouquetSettings Clone()
+    {
+        return (BouquetSettings)MemberwiseClone();
+    }
+
+    // the fields a dial drives. they chase the dial instead of jumping to it, which
+    // is how the bouquet opens and stretches in the reference
+    public bool EaseToward(BouquetSettings target, float blend)
+    {
+        bool isMoving = false;
+        density = Ease(density, target.density, blend, ref isMoving);
+        depthSpread = Ease(depthSpread, target.depthSpread, blend, ref isMoving);
+        colourVariation = Ease(colourVariation, target.colourVariation, blend, ref isMoving);
+        spreadGain = Ease(spreadGain, target.spreadGain, blend, ref isMoving);
+        stemLength = Ease(stemLength, target.stemLength, blend, ref isMoving);
+        return isMoving;
+    }
+
+    public static float Ease(float value, float target, float blend, ref bool isMoving)
+    {
+        if (value == target)
+        {
+            return value;
+        }
+
+        isMoving = true;
+        return Mathf.Abs(target - value) < Settled ? target : Mathf.Lerp(value, target, blend);
+    }
 }
 
 [Serializable]
 public struct BouquetPalette
 {
+    public const int PresetCount = 4;
+
     public Color background;
     public Color ink;
     public Color stem;
@@ -96,6 +129,28 @@ public struct BouquetPalette
         s = Mathf.Clamp01(s * (1.0f + (saturationRoll - 0.5f) * 2.0f * amount));
         v = Mathf.Clamp01(v * (1.0f + (valueRoll - 0.5f) * amount));
         return Color.HSVToRGB(h, s, v);
+    }
+
+    public static BouquetPalette Lerp(BouquetPalette from, BouquetPalette to, float t)
+    {
+        return new BouquetPalette
+        {
+            background = Color.Lerp(from.background, to.background, t),
+            ink = Color.Lerp(from.ink, to.ink, t),
+            stem = Color.Lerp(from.stem, to.stem, t),
+            leaf = Color.Lerp(from.leaf, to.leaf, t),
+            bloomA = Color.Lerp(from.bloomA, to.bloomA, t),
+            bloomB = Color.Lerp(from.bloomB, to.bloomB, t),
+            bloomC = Color.Lerp(from.bloomC, to.bloomC, t),
+            ribbon = Color.Lerp(from.ribbon, to.ribbon, t)
+        };
+    }
+
+    public static BouquetPalette At(float position)
+    {
+        int lower = Mathf.Clamp(Mathf.FloorToInt(position), 0, PresetCount - 1);
+        int upper = Mathf.Min(lower + 1, PresetCount - 1);
+        return Lerp(Preset(lower), Preset(upper), Mathf.Clamp01(position - lower));
     }
 
     private static Color Srgb(int hex)
