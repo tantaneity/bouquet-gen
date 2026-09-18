@@ -80,6 +80,21 @@ public static class BouquetFlora
         }
     }
 
+    // how far a spray's leaves reach sideways from its rib, in head sizes
+    public static float SprayRadius(Species species)
+    {
+        switch (species)
+        {
+            case Species.Lavender: return 0.20f;
+            case Species.Gypsophila: return 1.0f;
+            case Species.Eucalyptus: return 0.45f;
+            case Species.Fern: return 0.45f;
+            case Species.LongBlade: return 0.5f;
+            case Species.LeafSprig: return 0.40f;
+            default: return 0.0f;
+        }
+    }
+
     public static bool IsBloom(Species species)
     {
         return species <= Species.BerryCluster;
