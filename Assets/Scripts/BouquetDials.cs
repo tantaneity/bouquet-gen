@@ -135,8 +135,14 @@ public static class BouquetDialSet
     public static void Apply(Dial[] dials, BouquetBuilder builder)
     {
         builder.palette = Mathf.Clamp(Mathf.RoundToInt(dials[0].value * 3.0f), 0, 3);
-        builder.settings.stemCount = Mathf.RoundToInt(Mathf.Lerp(10.0f, 34.0f, dials[1].value));
-        builder.settings.coneHalfAngle = Mathf.Lerp(14.0f, 44.0f, dials[2].value);
-        builder.settings.stemLength = Mathf.Lerp(0.55f, 1.10f, dials[3].value);
+
+        // density drives every quota plus how much the layers separate, so the
+        // silhouette stays put while the bouquet actually fills in
+        builder.settings.density = dials[1].value;
+        builder.settings.depthSpread = Mathf.Lerp(0.14f, 0.30f, dials[1].value);
+        builder.settings.colourVariation = Mathf.Lerp(0.10f, 0.20f, dials[1].value);
+
+        builder.settings.coneHalfAngle = Mathf.Lerp(16.0f, 44.0f, dials[2].value);
+        builder.settings.stemLength = Mathf.Lerp(0.74f, 1.24f, dials[3].value);
     }
 }

@@ -5,7 +5,6 @@ using UnityEngine;
 public sealed class BouquetBuilder : MonoBehaviour
 {
     private static readonly int InkColorId = Shader.PropertyToID("_InkColor");
-    private static readonly int LineWidthId = Shader.PropertyToID("_LineWidth");
 
     [Range(0, 3)] public int palette = 2;
     public BouquetSettings settings = new BouquetSettings();
@@ -43,8 +42,7 @@ public sealed class BouquetBuilder : MonoBehaviour
         {
             MaterialPropertyBlock block = new MaterialPropertyBlock();
             renderer.GetPropertyBlock(block);
-            block.SetColor(InkColorId, colors.ink);
-            block.SetFloat(LineWidthId, settings.lineWidth);
+            block.SetColor(InkColorId, colors.ink.linear);
             renderer.SetPropertyBlock(block);
         }
 

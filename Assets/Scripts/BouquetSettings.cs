@@ -4,26 +4,37 @@ using UnityEngine;
 [Serializable]
 public sealed class BouquetSettings
 {
-    [Range(3, 40)] public int stemCount = 28;
-    [Range(5.0f, 70.0f)] public float coneHalfAngle = 27.0f;
-    [Range(0.0f, 1.0f)] public float azimuthJitter = 0.35f;
-    [Range(0.2f, 1.6f)] public float stemLength = 0.82f;
-    [Range(0.0f, 1.0f)] public float outwardCurve = 0.72f;
+    [Range(0.0f, 1.0f)] public float density = 0.55f;
+    [Range(5.0f, 70.0f)] public float coneHalfAngle = 34.0f;
+    [Range(0.2f, 1.6f)] public float stemLength = 1.00f;
     [Range(0, 64)] public int seed = 7;
 
-    [Range(-0.9f, 0.2f)] public float bindHeight = -0.40f;
-    [Range(0.05f, 0.8f)] public float cutLength = 0.31f;
-    [Range(0.02f, 0.3f)] public float headScale = 0.135f;
-    [Range(0.0f, 1.0f)] public float headLean = 0.55f;
+    [Header("Composition")]
+    [Range(0.0f, 0.8f)] public float asymmetry = 0.34f;
+    [Range(0.0f, 360.0f)] public float asymmetryAngle = 118.0f;
+    [Range(0.0f, 0.6f)] public float faceFlatten = 0.26f;
+    [Range(0.0f, 1.2f)] public float outwardCurve = 0.62f;
+    [Range(0.0f, 0.5f)] public float sideBend = 0.22f;
+    [Range(0.0f, 0.5f)] public float depthSpread = 0.22f;
+    [Range(0.0f, 120.0f)] public float bundleTwist = 54.0f;
 
+    [Header("Tie")]
+    [Range(-0.9f, 0.2f)] public float bindHeight = -0.40f;
+    [Range(0.05f, 0.8f)] public float cutLength = 0.32f;
     [Range(0.02f, 0.3f)] public float ribbonWidth = 0.105f;
-    [Range(0.0f, 0.6f)] public float tailLength = 0.36f;
+    [Range(0.0f, 0.6f)] public float tailLength = 0.34f;
     [Range(0.0f, 360.0f)] public float knotAngle = 200.0f;
+    [Range(0.0f, 0.3f)] public float tieHeight = 0.12f;
+
+    [Header("Heads")]
+    [Range(0.02f, 0.3f)] public float headScale = 0.095f;
+    [Range(0.0f, 0.4f)] public float colourVariation = 0.16f;
 
     // widths are fractions of screen height, so a stroke stays the same weight
     // at any distance and any capture resolution
-    [Range(0.001f, 0.02f)] public float stemWidth = 0.0036f;
-    [Range(0.001f, 0.02f)] public float lineWidth = 0.0019f;
+    [Header("Line")]
+    [Range(0.001f, 0.02f)] public float stemWidth = 0.0027f;
+    [Range(0.0002f, 0.004f)] public float detailWidth = 0.0008f;
 }
 
 [Serializable]
@@ -43,12 +54,41 @@ public struct BouquetPalette
         return index <= 0 ? bloomA : (index == 1 ? bloomB : bloomC);
     }
 
-    private static Color Rgb(float r, float g, float b)
+    // inner petals lift a little, blade greens drop: a value move, not a wash
+    // toward grey, which is what kills a limited palette
+    public Color Shift(Color color, float amount)
     {
-        return new Color(r, g, b, 1.0f);
+        Color.RGBToHSV(color, out float h, out float s, out float v);
+        if (amount >= 0.0f)
+        {
+            v = Mathf.Clamp01(v + amount);
+            s = Mathf.Clamp01(s * (1.0f - amount * 0.45f));
+        }
+        else
+        {
+            v = Mathf.Clamp01(v * (1.0f + amount));
+            s = Mathf.Clamp01(s * (1.0f - amount * 0.30f));
+        }
+
+        return Color.HSVToRGB(h, s, v);
     }
 
-    // measured off the reference frames, not picked by eye
+    public Color Vary(Color color, float saturationRoll, float valueRoll, float amount)
+    {
+        Color.RGBToHSV(color, out float h, out float s, out float v);
+        s = Mathf.Clamp01(s * (1.0f + (saturationRoll - 0.5f) * 2.0f * amount));
+        v = Mathf.Clamp01(v * (1.0f + (valueRoll - 0.5f) * amount));
+        return Color.HSVToRGB(h, s, v);
+    }
+
+    private static Color Srgb(int hex)
+    {
+        return new Color(((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f, (hex & 0xFF) / 255.0f, 1.0f);
+    }
+
+    // eyedropped off the reference frames, then deepened on purpose: blooms gain
+    // saturation and lose a little value, foliage goes markedly darker, and ink
+    // is a very dark desaturated green rather than black
     public static BouquetPalette Preset(int index)
     {
         switch (Mathf.Clamp(index, 0, 3))
@@ -56,34 +96,34 @@ public struct BouquetPalette
             case 0:
                 return new BouquetPalette
                 {
-                    background = Rgb(0.961f, 0.969f, 0.976f), ink = Rgb(0.114f, 0.118f, 0.114f),
-                    stem = Rgb(0.659f, 0.706f, 0.659f), leaf = Rgb(0.561f, 0.627f, 0.561f),
-                    bloomA = Rgb(0.784f, 0.157f, 0.220f), bloomB = Rgb(0.863f, 0.682f, 0.235f),
-                    bloomC = Rgb(0.282f, 0.157f, 0.408f), ribbon = Rgb(0.902f, 0.882f, 0.831f)
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x171817),
+                    stem = Srgb(0x7f8c7f), leaf = Srgb(0x687a68),
+                    bloomA = Srgb(0xbc0013), bloomB = Srgb(0xca9717),
+                    bloomC = Srgb(0x391261), ribbon = Srgb(0xe1dcce)
                 };
             case 1:
                 return new BouquetPalette
                 {
-                    background = Rgb(0.961f, 0.969f, 0.976f), ink = Rgb(0.165f, 0.149f, 0.125f),
-                    stem = Rgb(0.659f, 0.706f, 0.659f), leaf = Rgb(0.533f, 0.659f, 0.596f),
-                    bloomA = Rgb(0.910f, 0.847f, 0.784f), bloomB = Rgb(0.471f, 0.031f, 0.157f),
-                    bloomC = Rgb(0.847f, 0.816f, 0.745f), ribbon = Rgb(0.910f, 0.875f, 0.816f)
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x221d17),
+                    stem = Srgb(0x7f8c7f), leaf = Srgb(0x5f806f),
+                    bloomA = Srgb(0xdac7b3), bloomB = Srgb(0x6e0020),
+                    bloomC = Srgb(0xc9bfa9), ribbon = Srgb(0xe3dac9)
                 };
             case 2:
                 return new BouquetPalette
                 {
-                    background = Rgb(0.961f, 0.969f, 0.976f), ink = Rgb(0.106f, 0.118f, 0.110f),
-                    stem = Rgb(0.290f, 0.341f, 0.290f), leaf = Rgb(0.408f, 0.533f, 0.533f),
-                    bloomA = Rgb(0.910f, 0.659f, 0.596f), bloomB = Rgb(0.596f, 0.157f, 0.220f),
-                    bloomC = Rgb(0.847f, 0.659f, 0.659f), ribbon = Rgb(0.914f, 0.843f, 0.808f)
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x151816),
+                    stem = Srgb(0x364436), leaf = Srgb(0x476767),
+                    bloomA = Srgb(0xda8c78), bloomB = Srgb(0x8c0e20),
+                    bloomC = Srgb(0xc98e8e), ribbon = Srgb(0xe4d1c7)
                 };
             default:
                 return new BouquetPalette
                 {
-                    background = Rgb(0.961f, 0.969f, 0.976f), ink = Rgb(0.078f, 0.094f, 0.082f),
-                    stem = Rgb(0.235f, 0.282f, 0.235f), leaf = Rgb(0.353f, 0.455f, 0.439f),
-                    bloomA = Rgb(0.878f, 0.627f, 0.588f), bloomB = Rgb(0.478f, 0.125f, 0.188f),
-                    bloomC = Rgb(0.753f, 0.549f, 0.549f), ribbon = Rgb(0.898f, 0.812f, 0.776f)
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x0f1310),
+                    stem = Srgb(0x2b382b), leaf = Srgb(0x3d5854),
+                    bloomA = Srgb(0xd38478), bloomB = Srgb(0x700b1d),
+                    bloomC = Srgb(0xb37373), ribbon = Srgb(0xe0c9bf)
                 };
         }
     }

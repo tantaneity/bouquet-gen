@@ -10,6 +10,10 @@
 CBUFFER_START(UnityPerMaterial)
     float4 _InkColor;
     float _LineWidth;
+    float _OutlineDistance;
+    float _OutlineFloor;
+    float _OutlineCeiling;
+    float _OutlineWobble;
 CBUFFER_END
 
 struct Attributes
@@ -18,7 +22,7 @@ struct Attributes
     float3 expandOS : NORMAL;
     float4 tangentOS : TANGENT;
     float4 color : COLOR;
-    float2 kind : TEXCOORD0;
+    float4 stroke : TEXCOORD0;
 };
 
 struct Varyings
@@ -39,10 +43,19 @@ float2 ScreenDirection(float3 positionWS, float3 directionWS, float4 clip)
     return (length2 > 1e-12) ? delta * rsqrt(length2) : float2(0.0, 0.0);
 }
 
+// breaks the line off a perfectly even machine width without going sketchy
+float StrokeWobble(float3 positionOS)
+{
+    float noise = frac(sin(dot(positionOS, float3(12.9898, 78.233, 37.719))) * 43758.5453);
+    return 1.0 + (noise - 0.5) * _OutlineWobble;
+}
+
 Varyings Vertex(Attributes input)
 {
-    float kind = input.kind.x;
-    float width = input.kind.y;
+    float kind = input.stroke.x;
+    float baseWidth = input.stroke.y;
+    float outlineWeight = input.stroke.z;
+    float depthBias = input.stroke.w;
 
     float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
     float3 expandWS = float3(0.0, 0.0, 0.0);
@@ -61,17 +74,27 @@ Varyings Vertex(Attributes input)
     }
     else
     {
+        // a billboard carries its shape as an offset on the camera plane and its
+        // outline direction separately, because the rim normal of a petal is not
+        // the radial direction from the flower centre
         float3 right = UNITY_MATRIX_I_V._m00_m10_m20;
         float3 up = UNITY_MATRIX_I_V._m01_m11_m21;
-        float3 offset = right * input.expandOS.x + up * input.expandOS.y;
-        positionWS += offset;
-        expandWS = offset;
+        positionWS += right * input.expandOS.x + up * input.expandOS.y;
+        expandWS = right * input.tangentOS.x + up * input.tangentOS.y;
     }
+
+    // pulling toward the eye is what keeps stacked cards in order and puts a vein
+    // on top of the leaf it belongs to, without a second depth trick per species
+    float3 toEye = GetCameraPositionWS() - positionWS;
+    float eyeDistance = max(length(toEye), 1e-4);
+    positionWS += toEye / eyeDistance * depthBias;
 
     float4 clip = TransformWorldToHClip(positionWS);
 
+    float width = baseWidth;
 #ifdef BOUQUET_INK_PASS
-    width += _LineWidth;
+    float attenuation = clamp(_OutlineDistance / eyeDistance, _OutlineFloor, _OutlineCeiling);
+    width += _LineWidth * outlineWeight * attenuation * StrokeWobble(input.positionOS.xyz);
 #endif
 
     if (width > 0.0 && dot(expandWS, expandWS) > 1e-12)

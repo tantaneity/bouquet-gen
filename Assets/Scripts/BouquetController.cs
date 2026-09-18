@@ -15,8 +15,8 @@ public sealed class BouquetController : MonoBehaviour
     public MeshFilter dialMesh;
     public MeshRenderer dialRenderer;
 
-    public Vector3 orbitTarget = new Vector3(0.0f, 0.18f, 0.0f);
-    public float orbitRadius = 3.9f;
+    public Vector3 orbitTarget = new Vector3(0.0f, 0.0f, 0.0f);
+    public float orbitRadius = 3.25f;
     public float yaw;
     public float pitch = 12.0f;
 
