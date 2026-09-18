@@ -118,6 +118,7 @@ public static class BouquetFlora
     private static void PetalVeins(MeshBuffer mesh, Vector3 tip, int petals, float length, float phase, float layer,
         Color ink, float detailWidth, float rollJitter, int salt)
     {
+        mesh.SetInk(ink);
         for (int p = 0; p < petals; p++)
         {
             float wiggle = Hash(salt + p, 31, p * 7 + 3);
@@ -136,16 +137,20 @@ public static class BouquetFlora
         int middle = 6 + Mathf.RoundToInt(j1 * 2.0f);
         int inner = 4 + Mathf.RoundToInt(j2 * 2.0f);
 
-        PetalRing(mesh, tip, outer, size, size * 0.46f, 0.62f, roll, 0.0f, bloom, Outline.Contour, 0.26f, 0.30f, 11);
-        PetalVeins(mesh, tip, outer, size, roll, 0.0f, palette.ink, detailWidth, 0.30f, 11);
+        mesh.SetInk(palette.Line(bloom, 0.16f));
+        PetalRing(mesh, tip, outer, size, size * 0.46f, 0.62f, roll, 0.0f, bloom, Outline.Silhouette, 0.26f, 0.30f, 11);
 
         Color mid = palette.Shift(bloom, 0.06f);
+        mesh.SetInk(palette.Line(bloom, 0.48f));
         PetalRing(mesh, tip, middle, size * 0.70f, size * 0.36f, 0.70f, roll + 0.5f,
             BouquetShapes.LayerStep * 4.0f, mid, Outline.Contour, 0.24f, 0.32f, 37);
 
         Color core = palette.Shift(bloom, 0.13f);
         PetalRing(mesh, tip, inner, size * 0.42f, size * 0.26f, 0.80f, roll + 1.2f,
             BouquetShapes.LayerStep * 8.0f, core, Outline.Contour, 0.22f, 0.34f, 61);
+
+        PetalVeins(mesh, tip, outer, size, roll, BouquetShapes.LayerStep * 0.5f,
+            palette.Line(bloom, 0.62f), detailWidth, 0.30f, 11);
     }
 
     // the flat wide open flower the reference leans on for its big shapes
@@ -154,19 +159,25 @@ public static class BouquetFlora
     {
         int petals = 5 + Mathf.RoundToInt(j0 * 3.0f);
 
+        mesh.SetInk(palette.Line(bloom, 0.16f));
         PetalRing(mesh, tip, petals, size * 1.16f, size * 0.62f, 0.52f, roll, 0.0f, bloom, Outline.Silhouette, 0.30f, 0.26f, 5);
-        PetalVeins(mesh, tip, petals, size * 0.92f, roll, 0.0f, palette.ink, detailWidth * 0.8f, 0.26f, 5);
+        PetalVeins(mesh, tip, petals, size * 0.92f, roll, BouquetShapes.LayerStep * 0.5f,
+            palette.Line(bloom, 0.60f), detailWidth * 0.85f, 0.26f, 5);
 
-        Color inner = palette.Shift(bloom, -0.08f);
-        BouquetShapes.AddBillboardDisc(mesh, tip, size * 0.26f, inner, Outline.Contour, BouquetShapes.LayerStep * 4.0f);
+        Color inner = palette.Shift(bloom, -0.30f);
+        mesh.SetInk(palette.Line(inner, 0.55f));
+        BouquetShapes.AddBillboardDisc(mesh, tip, size * 0.24f, inner, Outline.Contour, BouquetShapes.LayerStep * 4.0f);
 
+        // stamens are strokes, not filled dots: filled ink pips read as black holes
+        Color stamenInk = palette.Line(inner, 0.40f);
         int stamens = 7 + Mathf.RoundToInt(j1 * 4.0f);
         for (int i = 0; i < stamens; i++)
         {
             float turn = i * Golden;
-            Vector2 at = BouquetShapes.Rotate(new Vector2(size * 0.17f, 0.0f), turn);
-            BouquetShapes.AddBillboardShape(mesh, tip, at, Offset(BouquetShapes.CircleRim(size * 0.038f, 8, 1.0f), at),
-                palette.ink, Outline.None, BouquetShapes.LayerStep * 6.0f);
+            Vector2 from = BouquetShapes.Rotate(new Vector2(size * 0.08f, 0.0f), turn);
+            Vector2 to = BouquetShapes.Rotate(new Vector2(size * 0.21f, 0.0f), turn);
+            BouquetShapes.AddBillboardLine(mesh, tip, new[] { from, to }, stamenInk, detailWidth * 0.8f,
+                BouquetShapes.LayerStep * 6.0f);
         }
     }
 
@@ -175,18 +186,25 @@ public static class BouquetFlora
     {
         int petals = 6 + Mathf.RoundToInt(j0 * 2.0f);
 
+        mesh.SetInk(palette.Line(bloom, 0.16f));
         PetalRing(mesh, tip, petals, size, size * 0.56f, 0.55f, roll, 0.0f, bloom, Outline.Silhouette, 0.28f, 0.28f, 17);
-        PetalVeins(mesh, tip, petals, size, roll, 0.0f, palette.ink, detailWidth, 0.28f, 17);
+        PetalVeins(mesh, tip, petals, size, roll, BouquetShapes.LayerStep * 0.5f,
+            palette.Line(bloom, 0.60f), detailWidth, 0.28f, 17);
 
-        BouquetShapes.AddBillboardDisc(mesh, tip, size * 0.27f, palette.ink, Outline.None, BouquetShapes.LayerStep * 4.0f);
+        // the dark eye is the one place a near black mass belongs, but it was far
+        // too wide and read as a hole punched through the flower
+        Color eye = palette.Shift(bloom, -0.66f);
+        mesh.SetInk(palette.Line(eye, 0.70f));
+        BouquetShapes.AddBillboardDisc(mesh, tip, size * 0.20f, eye, Outline.Small, BouquetShapes.LayerStep * 4.0f);
 
+        Color stamenInk = palette.Line(eye, 0.45f);
         int stamens = 9 + Mathf.RoundToInt(j1 * 5.0f);
         for (int i = 0; i < stamens; i++)
         {
             float turn = i / (float)stamens * Mathf.PI * 2.0f + roll;
-            Vector2 from = BouquetShapes.Rotate(new Vector2(size * 0.26f, 0.0f), turn);
-            Vector2 to = BouquetShapes.Rotate(new Vector2(size * 0.40f, 0.0f), turn);
-            BouquetShapes.AddBillboardLine(mesh, tip, new[] { from, to }, palette.ink, detailWidth * 0.9f,
+            Vector2 from = BouquetShapes.Rotate(new Vector2(size * 0.20f, 0.0f), turn);
+            Vector2 to = BouquetShapes.Rotate(new Vector2(size * 0.34f, 0.0f), turn);
+            BouquetShapes.AddBillboardLine(mesh, tip, new[] { from, to }, stamenInk, detailWidth * 0.85f,
                 BouquetShapes.LayerStep * 5.0f);
         }
     }
@@ -197,11 +215,13 @@ public static class BouquetFlora
         int outer = 12 + Mathf.RoundToInt(j0 * 4.0f);
         int middle = 9 + Mathf.RoundToInt(j1 * 3.0f);
 
+        mesh.SetInk(palette.Line(bloom, 0.24f));
         PetalRing(mesh, tip, outer, size, size * 0.17f, 0.85f, roll, 0.0f, bloom, Outline.Contour, 0.22f, 0.18f, 23);
 
         Color mid = palette.Shift(bloom, 0.07f);
+        mesh.SetInk(palette.Line(bloom, 0.55f));
         PetalRing(mesh, tip, middle, size * 0.66f, size * 0.15f, 0.9f, roll + 0.3f,
-            BouquetShapes.LayerStep * 4.0f, mid, Outline.Contour, 0.22f, 0.20f, 47);
+            BouquetShapes.LayerStep * 4.0f, mid, Outline.Small, 0.22f, 0.20f, 47);
 
         Color core = palette.Shift(bloom, 0.15f);
         BouquetShapes.AddBillboardDisc(mesh, tip, size * 0.15f, core, Outline.Small, BouquetShapes.LayerStep * 8.0f);
@@ -210,6 +230,7 @@ public static class BouquetFlora
     private static void BerryCluster(MeshBuffer mesh, Vector3 tip, float size, Color bloom, float j0)
     {
         int berries = 5 + Mathf.RoundToInt(j0 * 5.0f);
+        mesh.SetInk(Line(bloom));
         for (int i = 0; i < berries; i++)
         {
             float turn = i * Golden;
@@ -225,6 +246,7 @@ public static class BouquetFlora
     {
         float spike = size * (2.7f + j0 * 0.6f);
         float bead = size * 0.085f;
+        mesh.SetInk(palette.Line(bloom, 0.72f));
 
         for (int i = 0; i < LavenderBeads; i++)
         {
@@ -242,6 +264,7 @@ public static class BouquetFlora
     {
         float reach = size * (1.7f + j0 * 0.6f);
         Color hair = Color.Lerp(palette.ink, palette.background, 0.52f);
+        mesh.SetInk(Color.Lerp(palette.ink, palette.background, 0.34f));
         Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
 
         for (int i = 0; i < GypsophilaArms; i++)
@@ -268,6 +291,7 @@ public static class BouquetFlora
     {
         float spine = size * (2.4f + j0 * 0.5f);
         Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
+        mesh.SetInk(palette.Line(palette.leaf, 0.42f));
         BouquetShapes.AddRibbon(mesh, BouquetShapes.CubicPath(tip, tip + axis * spine * 0.35f, tip + axis * spine * 0.7f, tip + axis * spine, 6),
             palette.leaf, 0.0016f, Outline.Contour, 0.0f);
 
@@ -291,6 +315,7 @@ public static class BouquetFlora
     {
         float spine = size * (2.6f + j0 * 0.5f);
         Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
+        mesh.SetInk(palette.Line(palette.leaf, 0.56f));
         BouquetShapes.AddRibbon(mesh, new[] { tip, tip + axis * spine * 0.5f, tip + axis * spine }, palette.leaf, 0.0014f, Outline.Contour, 0.0f);
 
         Color blade = palette.Shift(palette.leaf, -0.10f);
@@ -325,6 +350,7 @@ public static class BouquetFlora
         Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
 
         Color blade = palette.Shift(palette.leaf, -0.06f);
+        mesh.SetInk(palette.Line(blade, 0.38f));
         BouquetShapes.AddBlade(mesh, frame, length, width, length * (0.18f + j1 * 0.22f), width * 0.9f,
             blade, Outline.Contour, 9);
         BouquetShapes.AddCardLine(mesh, frame, new[] { new Vector2(0.0f, length * 0.08f), new Vector2(0.0f, length * 0.88f) },
@@ -336,6 +362,7 @@ public static class BouquetFlora
     {
         float spine = size * (2.2f + j0 * 0.6f);
         Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
+        mesh.SetInk(palette.Line(palette.leaf, 0.66f));
         BouquetShapes.AddRibbon(mesh, new[] { tip, tip + axis * spine * 0.5f, tip + axis * spine }, palette.leaf, 0.0013f, Outline.Small, 0.0f);
 
         for (int i = 0; i < SprigLeaves; i++)
@@ -355,6 +382,12 @@ public static class BouquetFlora
             BouquetShapes.AddCardShape(mesh, frame, rim, root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn),
                 palette.leaf, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f);
         }
+    }
+
+    private static Color Line(Color fill)
+    {
+        Color.RGBToHSV(fill, out float h, out float s, out float v);
+        return Color.HSVToRGB(h, Mathf.Clamp01(s * 1.05f), Mathf.Clamp01(v * 0.42f));
     }
 
     private static Vector2[] Offset(Vector2[] rim, Vector2 by)

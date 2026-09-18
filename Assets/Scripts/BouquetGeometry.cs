@@ -57,6 +57,23 @@ public static class BouquetGeometry
         Species.Eucalyptus, Species.LeafSprig, Species.LongBlade, Species.Fern
     };
 
+    private struct Stage
+    {
+        public float azimuth;
+        public float length;
+        public float depth;
+    }
+
+    private static readonly Stage[] DominantStaging =
+    {
+        new Stage { azimuth = -40.0f, length = 0.90f, depth =  1.00f },
+        new Stage { azimuth =  46.0f, length = 1.12f, depth =  0.35f },
+        new Stage { azimuth = -12.0f, length = 1.28f, depth = -0.25f },
+        new Stage { azimuth =  92.0f, length = 0.84f, depth =  0.70f },
+        new Stage { azimuth = -80.0f, length = 1.02f, depth =  0.05f },
+        new Stage { azimuth =  16.0f, length = 1.20f, depth = -0.55f }
+    };
+
     private struct Stalk
     {
         public Vector3 anchor;
@@ -83,6 +100,10 @@ public static class BouquetGeometry
             Color stemColour = palette.Vary(palette.stem,
                 BouquetFlora.Hash(stalk.index, 40, settings.seed),
                 BouquetFlora.Hash(stalk.index, 41, settings.seed), settings.colourVariation * 0.5f);
+
+            // a stem outline that goes near black turns the bundle into spaghetti,
+            // so the line sinks most of the way into the stem's own green
+            mesh.SetInk(palette.Line(stemColour, 0.74f));
 
             float width = settings.stemWidth * stalk.stemWidth;
             float weight = Mathf.Lerp(Outline.Small, Outline.Silhouette, stalk.stemWidth);
@@ -129,6 +150,17 @@ public static class BouquetGeometry
         // an even step reads as a machine
         float across = (slot + 0.15f + 0.70f * BouquetFlora.Hash(index, 0, seed)) / count - 0.5f;
         float azimuth = band.azimuthCentre + band.azimuthSpread * across;
+
+        float stagedLength = 1.0f;
+        float stagedDepth = 0.0f;
+        if (role == Role.Dominant)
+        {
+            Stage stage = DominantStaging[slot % DominantStaging.Length];
+            azimuth = stage.azimuth + (BouquetFlora.Hash(index, 15, seed) - 0.5f) * 26.0f;
+            stagedLength = stage.length;
+            stagedDepth = stage.depth;
+        }
+
         float azimuthRadians = azimuth * Mathf.Deg2Rad;
 
         float bias = Mathf.Cos(azimuthRadians - settings.asymmetryAngle * Mathf.Deg2Rad);
@@ -143,7 +175,7 @@ public static class BouquetGeometry
 
         float lengthRoll = BouquetFlora.Hash(index, 4, seed);
         float kick = BouquetFlora.Hash(index, 5, seed) < 0.18f ? 1.20f : 1.0f;
-        float silhouette = settings.stemLength * Mathf.Lerp(band.lengthLow, band.lengthHigh, lengthRoll) * kick;
+        float silhouette = settings.stemLength * Mathf.Lerp(band.lengthLow, band.lengthHigh, lengthRoll) * kick * stagedLength;
         float reach = Mathf.Max(silhouette - BouquetFlora.TipReserve(species) * headSize, settings.stemLength * 0.22f);
 
         Vector2 around = new Vector2(Mathf.Cos(azimuthRadians), Mathf.Sin(azimuthRadians));
@@ -158,7 +190,7 @@ public static class BouquetGeometry
             + Vector3.up * (BouquetFlora.Hash(index, 6, seed) - 0.5f) * settings.tieHeight;
 
         Vector3 tip = anchor + heading * reach;
-        tip += Vector3.forward * band.depth * settings.depthSpread;
+        tip += Vector3.forward * (band.depth + stagedDepth * 0.22f) * settings.depthSpread;
         tip += Vector3.up * (BouquetFlora.Hash(index, 7, seed) - 0.5f) * reach * 0.10f;
 
         Vector3 lateral = Vector3.Normalize(Vector3.Cross(heading, Vector3.up));
@@ -204,6 +236,7 @@ public static class BouquetGeometry
             Vector3 outward = new Vector3(Mathf.Cos(t), 0.0f, Mathf.Sin(t));
             Vector3 rim = bind + outward * radius;
 
+            mesh.SetInk(palette.Line(palette.ribbon, 0.34f));
             mesh.AddVertex(rim + Vector3.down * halfHeight, Vector3.down, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f);
             mesh.AddVertex(rim + Vector3.up * halfHeight, Vector3.up, Vector4.zero, palette.ribbon, StrokeKind.Card, 0.0f, Outline.Silhouette, 0.0f);
 
@@ -242,6 +275,11 @@ public static class BouquetGeometry
     public static void AddRibbon(MeshBuffer mesh, IReadOnlyList<Vector3> points, Color fill, float width)
     {
         BouquetShapes.AddRibbon(mesh, points, fill, width, Outline.Contour, 0.0f);
+    }
+
+    public static void SetDialInk(MeshBuffer mesh, Color colour)
+    {
+        mesh.SetInk(colour);
     }
 
     public static void AddHandle(MeshBuffer mesh, Vector3 position, float radius, Color fill)

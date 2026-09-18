@@ -64,6 +64,8 @@ public static class BouquetDialSet
     {
         Vector3[] points = new Vector3[TrackSteps + 1];
 
+        BouquetGeometry.SetDialInk(mesh, new Color(0.55f, 0.58f, 0.60f, 1.0f));
+
         foreach (Dial dial in dials)
         {
             for (int s = 0; s <= TrackSteps; s++)
@@ -140,7 +142,7 @@ public static class BouquetDialSet
         // silhouette stays put while the bouquet actually fills in
         builder.settings.density = dials[1].value;
         builder.settings.depthSpread = Mathf.Lerp(0.14f, 0.30f, dials[1].value);
-        builder.settings.colourVariation = Mathf.Lerp(0.10f, 0.20f, dials[1].value);
+        builder.settings.colourVariation = Mathf.Lerp(0.18f, 0.30f, dials[1].value);
 
         builder.settings.coneHalfAngle = Mathf.Lerp(16.0f, 44.0f, dials[2].value);
         builder.settings.stemLength = Mathf.Lerp(0.74f, 1.24f, dials[3].value);

@@ -25,12 +25,11 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _LineWidth: 0.0013
+    - _LineWidth: 0.0011
     - _OutlineCeiling: 1.22
     - _OutlineDistance: 3.9
     - _OutlineFloor: 0.66
     - _OutlineWobble: 0.22
-    m_Colors:
-    - _InkColor: {r: 0.34239164, g: 0.38005632, b: 0.40644833, a: 1}
+    m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

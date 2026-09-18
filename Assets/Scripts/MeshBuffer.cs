@@ -13,10 +13,10 @@ public enum StrokeKind
 // cartoon outline around every mesh
 public static class Outline
 {
-    public const float Silhouette = 1.0f;
-    public const float Contour = 0.60f;
-    public const float Small = 0.30f;
-    public const float Detail = 0.16f;
+    public const float Silhouette = 1.00f;
+    public const float Contour = 0.44f;
+    public const float Small = 0.17f;
+    public const float Detail = 0.09f;
     public const float None = 0.0f;
 }
 
@@ -27,9 +27,19 @@ public sealed class MeshBuffer
     private readonly List<Vector4> tangents = new List<Vector4>();
     private readonly List<Color> colors = new List<Color>();
     private readonly List<Vector4> strokes = new List<Vector4>();
+    private readonly List<Vector4> inks = new List<Vector4>();
     private readonly List<int> indices = new List<int>();
 
+    private Color ink = Color.black;
+
     public int VertexCount => positions.Count;
+
+    // the line colour belongs to the element, not to the scene: one uniform ink
+    // forces a stem to wear the same near black line as a peony
+    public void SetInk(Color colour)
+    {
+        ink = colour;
+    }
 
     // the project renders linear, and every palette value here was eyedropped off
     // the reference as sRGB, so the conversion happens once, here, or the whole
@@ -42,6 +52,8 @@ public sealed class MeshBuffer
         tangents.Add(tangent);
         colors.Add(color.linear);
         strokes.Add(new Vector4((float)kind, width, outlineWeight, depthBias));
+        Color line = ink.linear;
+        inks.Add(new Vector4(line.r, line.g, line.b, 1.0f));
     }
 
     public void AddTriangle(int a, int b, int c)
@@ -66,6 +78,7 @@ public sealed class MeshBuffer
         mesh.SetTangents(tangents);
         mesh.SetColors(colors);
         mesh.SetUVs(0, strokes);
+        mesh.SetUVs(1, inks);
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateBounds();
     }

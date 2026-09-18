@@ -2,8 +2,7 @@ Shader "Custom/BouquetFlat"
 {
     Properties
     {
-        _InkColor ("Ink Color", Color) = (0.08, 0.10, 0.085, 1)
-        _LineWidth ("Line Width", Range(0.0005, 0.02)) = 0.0026
+        _LineWidth ("Line Width", Range(0.0005, 0.02)) = 0.0021
         _OutlineDistance ("Outline Reference Distance", Range(0.5, 12)) = 3.9
         _OutlineFloor ("Outline Thin Limit", Range(0.2, 1)) = 0.66
         _OutlineCeiling ("Outline Thick Limit", Range(1, 2)) = 1.22

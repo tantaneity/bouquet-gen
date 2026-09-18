@@ -15,7 +15,7 @@ public sealed class BouquetSettings
     [Range(0.0f, 0.6f)] public float faceFlatten = 0.26f;
     [Range(0.0f, 1.2f)] public float outwardCurve = 0.62f;
     [Range(0.0f, 0.5f)] public float sideBend = 0.22f;
-    [Range(0.0f, 0.5f)] public float depthSpread = 0.22f;
+    [Range(0.0f, 0.5f)] public float depthSpread = 0.34f;
     [Range(0.0f, 120.0f)] public float bundleTwist = 54.0f;
 
     [Header("Tie")]
@@ -28,7 +28,7 @@ public sealed class BouquetSettings
 
     [Header("Heads")]
     [Range(0.02f, 0.3f)] public float headScale = 0.095f;
-    [Range(0.0f, 0.4f)] public float colourVariation = 0.16f;
+    [Range(0.0f, 0.4f)] public float colourVariation = 0.24f;
 
     // widths are fractions of screen height, so a stroke stays the same weight
     // at any distance and any capture resolution
@@ -73,6 +73,16 @@ public struct BouquetPalette
         return Color.HSVToRGB(h, s, v);
     }
 
+    // a line that keeps some of its own fill reads as drawn; one shared near black
+    // line around everything reads as comic outline. blend 0 is pure ink, 1 is a
+    // deep version of the fill itself
+    public Color Line(Color fill, float blend)
+    {
+        Color.RGBToHSV(fill, out float h, out float s, out float v);
+        Color deep = Color.HSVToRGB(h, Mathf.Clamp01(s * 1.08f), Mathf.Clamp01(v * 0.34f));
+        return Color.Lerp(ink, deep, Mathf.Clamp01(blend));
+    }
+
     public Color Vary(Color color, float saturationRoll, float valueRoll, float amount)
     {
         Color.RGBToHSV(color, out float h, out float s, out float v);
@@ -96,7 +106,7 @@ public struct BouquetPalette
             case 0:
                 return new BouquetPalette
                 {
-                    background = Srgb(0xf5f7f9), ink = Srgb(0x171817),
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x262a26),
                     stem = Srgb(0x7f8c7f), leaf = Srgb(0x687a68),
                     bloomA = Srgb(0xbc0013), bloomB = Srgb(0xca9717),
                     bloomC = Srgb(0x391261), ribbon = Srgb(0xe1dcce)
@@ -104,7 +114,7 @@ public struct BouquetPalette
             case 1:
                 return new BouquetPalette
                 {
-                    background = Srgb(0xf5f7f9), ink = Srgb(0x221d17),
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x322a22),
                     stem = Srgb(0x7f8c7f), leaf = Srgb(0x5f806f),
                     bloomA = Srgb(0xdac7b3), bloomB = Srgb(0x6e0020),
                     bloomC = Srgb(0xc9bfa9), ribbon = Srgb(0xe3dac9)
@@ -112,7 +122,7 @@ public struct BouquetPalette
             case 2:
                 return new BouquetPalette
                 {
-                    background = Srgb(0xf5f7f9), ink = Srgb(0x151816),
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x242c26),
                     stem = Srgb(0x364436), leaf = Srgb(0x476767),
                     bloomA = Srgb(0xda8c78), bloomB = Srgb(0x8c0e20),
                     bloomC = Srgb(0xc98e8e), ribbon = Srgb(0xe4d1c7)
@@ -120,7 +130,7 @@ public struct BouquetPalette
             default:
                 return new BouquetPalette
                 {
-                    background = Srgb(0xf5f7f9), ink = Srgb(0x0f1310),
+                    background = Srgb(0xf5f7f9), ink = Srgb(0x1c241e),
                     stem = Srgb(0x2b382b), leaf = Srgb(0x3d5854),
                     bloomA = Srgb(0xd38478), bloomB = Srgb(0x700b1d),
                     bloomC = Srgb(0xb37373), ribbon = Srgb(0xe0c9bf)

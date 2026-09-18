@@ -12,7 +12,7 @@ public static class SceneBootstrap
     private const string DialMaterialPath = "Assets/Materials/BouquetDials.mat";
 
     private const float FieldOfView = 30.0f;
-    private const float DialLineWidth = 0.0013f;
+    private const float DialLineWidth = 0.0011f;
 
     private static readonly Color DialInk = new Color(0.62f, 0.65f, 0.67f, 1.0f);
 
@@ -27,7 +27,7 @@ public static class SceneBootstrap
         }
 
         BouquetPalette colors = BouquetPalette.Preset(2);
-        Material bouquetMaterial = LoadOrCreate(shader, BouquetMaterialPath, colors.ink, 0.0026f);
+        Material bouquetMaterial = LoadOrCreate(shader, BouquetMaterialPath, colors.ink, 0.0021f);
         Material dialMaterial = LoadOrCreate(shader, DialMaterialPath, DialInk, DialLineWidth);
 
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -87,7 +87,6 @@ public static class SceneBootstrap
         }
 
         Material material = new Material(shader);
-        material.SetColor("_InkColor", ink.linear);
         material.SetFloat("_LineWidth", lineWidth);
         AssetDatabase.CreateAsset(material, path);
         return material;

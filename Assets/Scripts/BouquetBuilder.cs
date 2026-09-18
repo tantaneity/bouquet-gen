@@ -4,8 +4,6 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public sealed class BouquetBuilder : MonoBehaviour
 {
-    private static readonly int InkColorId = Shader.PropertyToID("_InkColor");
-
     [Range(0, 3)] public int palette = 2;
     public BouquetSettings settings = new BouquetSettings();
 
@@ -36,15 +34,6 @@ public sealed class BouquetBuilder : MonoBehaviour
         BouquetGeometry.Build(buffer, settings, colors);
         buffer.WriteTo(mesh);
         filter.sharedMesh = mesh;
-
-        MeshRenderer renderer = GetComponent<MeshRenderer>();
-        if (renderer.sharedMaterial != null)
-        {
-            MaterialPropertyBlock block = new MaterialPropertyBlock();
-            renderer.GetPropertyBlock(block);
-            block.SetColor(InkColorId, colors.ink.linear);
-            renderer.SetPropertyBlock(block);
-        }
 
         Camera camera = Camera.main;
         if (camera != null)

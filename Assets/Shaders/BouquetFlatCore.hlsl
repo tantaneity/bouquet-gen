@@ -8,7 +8,6 @@
 #define PROBE_STEP 0.002
 
 CBUFFER_START(UnityPerMaterial)
-    float4 _InkColor;
     float _LineWidth;
     float _OutlineDistance;
     float _OutlineFloor;
@@ -23,6 +22,7 @@ struct Attributes
     float4 tangentOS : TANGENT;
     float4 color : COLOR;
     float4 stroke : TEXCOORD0;
+    float4 ink : TEXCOORD1;
 };
 
 struct Varyings
@@ -107,7 +107,7 @@ Varyings Vertex(Attributes input)
     Varyings output;
     output.positionCS = clip;
 #ifdef BOUQUET_INK_PASS
-    output.color = _InkColor;
+    output.color = input.ink;
 #else
     output.color = input.color;
 #endif
