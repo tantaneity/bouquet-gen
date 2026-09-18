@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Bouquet
+  m_Shader: {fileID: 4800000, guid: 52254c89ab0a14111add95c243d6864b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BindHeight: -0.34
+    - _Curve: 0.72
+    - _CutLength: 0.31
+    - _HeadScale: 0.105
+    - _LineWidth: 0.0075
+    - _Palette: 3
+    - _RibbonWidth: 0.085
+    - _Scale: 1
+    - _Seed: 18
+    - _Spread: 29
+    - _SpreadJitter: 0.07
+    - _StemCount: 24
+    - _StemLength: 0.95
+    - _StemWidth: 0.0095
+    - _TailLength: 0.36
+    m_Colors: []
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
