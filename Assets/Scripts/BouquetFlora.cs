@@ -21,8 +21,16 @@ public static class BouquetFlora
 {
     private const int GypsophilaArms = 11;
     private const int LavenderBeads = 20;
-    private const int EucalyptusLeaves = 7;
-    private const int FernLeaflets = 13;
+    private const int EucalyptusPairs = 7;
+    private const float EucalyptusTwist = 0.35f;
+    private const float EucalyptusSage = 0.12f;
+    private const int FernLeaflets = 15;
+    private const float FernLean = 1.08f;
+    private const float CombLean = 0.72f;
+    private const float SprayTwist = 0.6f;
+    private const float SprayViewerBias = 1.0f;
+    private const float SprayOutward = 0.5f;
+    private const float LeafInk = 0.85f;
     private const int SprigLeaves = 9;
     private const float Golden = 2.39996f;
     private const int DiscSteps = 16;
@@ -46,7 +54,7 @@ public static class BouquetFlora
         {
             case Species.Lavender: return 3.0f;
             case Species.Gypsophila: return 2.0f;
-            case Species.Eucalyptus: return 2.7f;
+            case Species.Eucalyptus: return 3.4f;
             case Species.Fern: return 2.9f;
             case Species.LongBlade: return 3.2f;
             case Species.LeafSprig: return 2.8f;
@@ -386,50 +394,72 @@ public static class BouquetFlora
         }
     }
 
+    // sprays turn outward like the heads do, with a pull towards the front so the
+    // bouquet's face shows leaves flat rather than as edges
+    private static Matrix4x4 SprayFrame(Vector3 tip, Vector3 axis, float roll)
+    {
+        Vector3 facing = new Vector3(tip.x, 0.0f, tip.z) * SprayOutward + Vector3.back * SprayViewerBias;
+        return BouquetShapes.SprayFrame(tip, axis, facing, Mathf.Sin(roll) * SprayTwist);
+    }
+
+    // round leaves in opposite pairs clasping the stem, overlapping up the spray
     private static void Eucalyptus(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette,
         float detailWidth, float j0)
     {
-        float spine = size * (2.4f + j0 * 0.5f);
-        Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
-        mesh.SetInk(palette.Line(palette.leaf, 0.42f));
+        float spine = size * (3.1f + j0 * 0.6f);
+        Color sage = palette.Shift(palette.leaf, EucalyptusSage);
+        mesh.SetInk(palette.Line(sage, LeafInk));
         BouquetShapes.AddRibbon(mesh, BouquetShapes.CubicPath(tip, tip + axis * spine * 0.35f, tip + axis * spine * 0.7f, tip + axis * spine, 6),
             palette.leaf, 0.0016f, Outline.Contour, 0.0f);
 
-        for (int i = 0; i < EucalyptusLeaves; i++)
+        for (int pair = 0; pair < EucalyptusPairs; pair++)
         {
-            float t = (i + 0.4f) / EucalyptusLeaves;
-            float side = (i % 2 == 0) ? 1.0f : -1.0f;
-            float radius = size * 0.30f * (1.0f - 0.34f * t);
-            Vector2 at = new Vector2(side * radius * 1.05f, spine * t);
-            Matrix4x4 leaf = frame * Matrix4x4.Translate(new Vector3(0.0f, 0.0f, 0.0f));
+            float t = (pair + 0.35f) / EucalyptusPairs;
+            float radius = size * 0.40f * (1.0f - 0.40f * t);
+            float twist = (pair % 2 == 0 ? 1.0f : -1.0f) * EucalyptusTwist;
+            Matrix4x4 frame = SprayFrame(tip, axis, roll + twist);
 
-            BouquetShapes.AddCardShape(mesh, leaf, Offset(BouquetShapes.CircleRim(radius, 13, 0.88f), at), at,
-                palette.leaf, Outline.Contour, (i + 1) * BouquetShapes.LayerStep * 0.5f, Bend.Bowl(at, LeafBowl / radius));
-            BouquetShapes.AddCardLine(mesh, leaf, new[] { at - new Vector2(side * radius * 0.7f, 0.0f), at + new Vector2(side * radius * 0.7f, 0.0f) },
-                palette.ink, detailWidth, (i + 1) * BouquetShapes.LayerStep * 0.5f + BouquetShapes.LayerStep * 0.25f);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector2 at = new Vector2(side * radius * 1.05f, spine * t + radius * 0.20f);
+                float depth = (pair * 2 + side + 2) * BouquetShapes.LayerStep * 0.5f;
+                BouquetShapes.AddCardShape(mesh, frame, Offset(BouquetShapes.CircleRim(radius, 15, 0.86f), at), at,
+                    sage, Outline.Silhouette, depth, Bend.Bowl(at, LeafBowl / radius));
+            }
         }
+
+        Vector2 crown = new Vector2(0.0f, spine * 1.02f);
+        float crownRadius = size * 0.22f;
+        BouquetShapes.AddCardShape(mesh, SprayFrame(tip, axis, roll), Offset(BouquetShapes.CircleRim(crownRadius, 13, 0.86f), crown), crown,
+            sage, Outline.Silhouette, EucalyptusPairs * 2 * BouquetShapes.LayerStep * 0.5f, Bend.Bowl(crown, LeafBowl / crownRadius));
     }
 
+    // a feather of leaflets packed tight and swept up along the rib. half the ferns
+    // are broad herringbone plumes, the rest narrow combs, both as in the reference
     private static void Fern(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette,
         float detailWidth, float j0)
     {
+        bool isComb = j0 > 0.5f;
         float spine = size * (2.6f + j0 * 0.5f);
-        Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
-        mesh.SetInk(palette.Line(palette.leaf, 0.56f));
-        BouquetShapes.AddRibbon(mesh, new[] { tip, tip + axis * spine * 0.5f, tip + axis * spine }, palette.leaf, 0.0014f, Outline.Contour, 0.0f);
+        float reach = isComb ? 0.32f : 0.62f;
+        float lean = isComb ? CombLean : FernLean;
+        Matrix4x4 frame = SprayFrame(tip, axis, roll);
 
         Color blade = palette.Shift(palette.leaf, -0.10f);
+        mesh.SetInk(palette.Line(blade, LeafInk));
+        BouquetShapes.AddRibbon(mesh, new[] { tip, tip + axis * spine * 0.5f, tip + axis * spine }, palette.leaf, 0.0014f, Outline.Contour, 0.0f);
 
         for (int i = 0; i < FernLeaflets; i++)
         {
             float t = (i + 0.5f) / FernLeaflets;
-            float length = size * 0.42f * (1.0f - 0.52f * t);
+            float envelope = Mathf.Pow(Mathf.Sin(Mathf.PI * (0.18f + 0.82f * t)), 0.6f);
+            float length = size * reach * Mathf.Max(envelope, 0.25f);
+            Vector2 root = new Vector2(0.0f, spine * (0.10f + 0.90f * t));
 
             for (int side = -1; side <= 1; side += 2)
             {
-                float turn = side > 0 ? 0.62f : Mathf.PI - 0.62f;
-                Vector2[] rim = BouquetShapes.PetalRim(length, length * 0.17f, 0.75f, 0.0f);
-                Vector2 root = new Vector2(0.0f, spine * (0.05f + 0.95f * t));
+                float turn = side > 0 ? lean : Mathf.PI - lean;
+                Vector2[] rim = BouquetShapes.PetalRim(length, length * 0.24f, 0.8f, 0.0f);
                 for (int k = 0; k < rim.Length; k++)
                 {
                     rim[k] = BouquetShapes.Rotate(rim[k], turn) + root;
@@ -437,7 +467,7 @@ public static class BouquetFlora
 
                 Vector2 middle = root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn);
                 BouquetShapes.AddCardShape(mesh, frame, rim, middle,
-                    blade, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
+                    blade, Outline.Contour, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
             }
         }
     }
@@ -448,12 +478,12 @@ public static class BouquetFlora
     {
         float length = size * (2.6f + j0 * 0.9f);
         float width = size * (0.24f + j1 * 0.12f);
-        Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
+        Matrix4x4 frame = SprayFrame(tip, axis, roll);
 
         Color blade = palette.Shift(palette.leaf, -0.06f);
-        mesh.SetInk(palette.Line(blade, 0.38f));
+        mesh.SetInk(palette.Line(blade, LeafInk));
         BouquetShapes.AddBlade(mesh, frame, length, width, length * (0.18f + j1 * 0.22f), width * 0.9f,
-            blade, Outline.Contour, 9);
+            blade, Outline.Silhouette, 9);
         BouquetShapes.AddCardLine(mesh, frame, new[] { new Vector2(0.0f, length * 0.08f), new Vector2(0.0f, length * 0.88f) },
             palette.ink, detailWidth, BouquetShapes.LayerStep * 0.7f);
     }
@@ -462,8 +492,8 @@ public static class BouquetFlora
         float detailWidth, float j0)
     {
         float spine = size * (2.2f + j0 * 0.6f);
-        Matrix4x4 frame = BouquetShapes.Frame(tip, axis, roll);
-        mesh.SetInk(palette.Line(palette.leaf, 0.66f));
+        Matrix4x4 frame = SprayFrame(tip, axis, roll);
+        mesh.SetInk(palette.Line(palette.leaf, LeafInk));
         BouquetShapes.AddRibbon(mesh, new[] { tip, tip + axis * spine * 0.5f, tip + axis * spine }, palette.leaf, 0.0013f, Outline.Small, 0.0f);
 
         for (int i = 0; i < SprigLeaves; i++)
@@ -482,7 +512,7 @@ public static class BouquetFlora
 
             Vector2 middle = root + BouquetShapes.Rotate(new Vector2(length * 0.45f, 0.0f), turn);
             BouquetShapes.AddCardShape(mesh, frame, rim, middle,
-                palette.leaf, Outline.Small, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
+                palette.leaf, Outline.Contour, (i + 1) * BouquetShapes.LayerStep * 0.4f, Bend.Bowl(middle, LeafBowl / length));
         }
     }
 

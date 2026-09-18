@@ -262,6 +262,23 @@ public static class BouquetShapes
         }
     }
 
+    // a leafy spray is laid out along its stem, so local y runs up the axis and the
+    // card faces whichever way it is told, twisted about the stem
+    public static Matrix4x4 SprayFrame(Vector3 origin, Vector3 axis, Vector3 facing, float twist)
+    {
+        Vector3 up = axis.normalized;
+        Vector3 normal = facing - up * Vector3.Dot(facing, up);
+        if (normal.sqrMagnitude < 1e-6f)
+        {
+            normal = Mathf.Abs(up.z) > 0.95f ? Vector3.up : Vector3.back;
+            normal -= up * Vector3.Dot(normal, up);
+        }
+
+        normal = Quaternion.AngleAxis(twist * Mathf.Rad2Deg, up) * normal.normalized;
+        Vector3 right = Vector3.Cross(up, normal);
+        return new Matrix4x4(right, up, normal, new Vector4(origin.x, origin.y, origin.z, 1.0f));
+    }
+
     public static Matrix4x4 Frame(Vector3 origin, Vector3 axis, float roll)
     {
         Vector3 reference = Mathf.Abs(axis.y) > 0.95f ? Vector3.forward : Vector3.up;

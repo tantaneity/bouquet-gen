@@ -19,6 +19,7 @@ public static class BouquetGeometry
     private const int StemSteps = 12;
     private const int BandSteps = 22;
     private const int RoleCount = 6;
+    private const float MaxReserveShare = 0.55f;
 
     private struct Band
     {
@@ -257,8 +258,10 @@ public static class BouquetGeometry
         Vector3 heading = Vector3.Normalize(targetTip - bind);
 
         // a sprig head keeps climbing past the stem, so the stem stops short of the
-        // place the silhouette is supposed to reach
-        Vector3 tip = targetTip - heading * BouquetFlora.TipReserve(species) * headSize;
+        // place the silhouette is supposed to reach. a low target cannot give up more
+        // than part of its stem, or the tip sinks into the tie and the spray points sideways
+        float reserve = Mathf.Min(BouquetFlora.TipReserve(species) * headSize, target.magnitude * MaxReserveShare);
+        Vector3 tip = targetTip - heading * reserve;
 
         Vector3 flat = new Vector3(target.x, 0.0f, target.z);
         float radial = flat.magnitude;
