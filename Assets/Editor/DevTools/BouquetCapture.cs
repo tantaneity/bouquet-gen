@@ -28,6 +28,7 @@ public static class BouquetCapture
         float yaw = GetFloatArgument("-yaw", 0.0f);
         float pitch = GetFloatArgument("-pitch", 12.0f);
         bool spin = GetIntArgument("-spin", 0) != 0;
+        float radius = GetFloatArgument("-radius", 0.0f);
 
         Directory.CreateDirectory(outputDirectory);
         EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -40,6 +41,11 @@ public static class BouquetCapture
             Debug.LogError("BOUQUET_CAPTURE: scene is missing the camera, the bouquet or the controller");
             EditorApplication.Exit(1);
             return;
+        }
+
+        if (radius > 0.0f)
+        {
+            controller.orbitRadius = radius;
         }
 
         if (!ApplyDials(controller, GetArgument("-dials")))
