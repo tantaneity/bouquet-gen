@@ -35,3 +35,7 @@ sysinfo.txt
 
 crashlytics-build.properties
 
+
+Assets/Editor/
+Assets/Editor.meta
+Captures/

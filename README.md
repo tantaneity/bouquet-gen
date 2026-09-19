@@ -2,7 +2,7 @@
 
 A procedural flower bouquet in Unity. No models, no textures: every petal, leaf, stem and the ribbon are built as a mesh in C# each time a setting changes, then drawn by one small toon shader with ink outlines.
 
-![bouquet](Captures/bouquet.png)
+![bouquet](media/bouquet.png)
 
 Started as an attempt to recreate a generative bouquet clip I saw somewhere. The clip looked like vector art, but it spun like a real 3D object, so the whole thing ended up as actual geometry.
 
@@ -14,7 +14,7 @@ The bouquet gets arranged like a florist would do it, not just scattered around 
 
 Everything is seeded. Same seed, same bouquet.
 
-![turntable](Captures/turntable.png)
+![turntable](media/turntable.png)
 
 ## Dials
 
@@ -27,50 +27,15 @@ ground ring   spread
 right arc     stem length
 ```
 
-![dials](Captures/dials.png)
+![dials](media/dials.png)
 
-![palettes](Captures/palettes.png)
+![palettes](media/palettes.png)
 
 ## Running it
 
 Unity 6000.3.5f2 with URP 17.3 and the Input System. Open the project, load `Assets/Scenes/Bouquet.unity`, press Play.
 
 The builder runs in edit mode too, so tweaking `BouquetBuilder` settings in the inspector rebuilds the bouquet right away.
-
-## Headless tools
-
-Everything under `Assets/Editor/DevTools` runs from the command line, which is how the screenshots above were made.
-
-```
-SceneBootstrap.Run       rebuilds the scene, camera, materials and dials from code
-ShaderCompileCheck.Run   exits 1 if the shader fails to compile
-DialSelfCheck.Run        puts each handle on screen and checks the pointer reads the same value back
-BouquetCapture.Run       renders PNG frames
-```
-
-Capture flags:
-
-```
--outputDir <dir>        where the frames go (required)
--size <px>              square frame size, default 1080
--frames <n>             frame count, default 1
--spin 1                 full turn over the frames
--yaw / -yawTo <deg>     camera start and end angle
--pitch <deg>            camera tilt, default 12
--radius <r>             orbit distance, default 3.45
--hideDials 1            bouquet only
--dials a,b,c,d          dial values, 0..1
--dialsTo "a,b,c,d;..."  keys to drag the dials through, eased like in play mode
--overrides k=v,...      any BouquetSettings field by name, plus palette
--fps <n>                easing step for dial sequences, default 30
-```
-
-Leave out `-nographics` when capturing, the camera needs a GPU.
-
-```sh
-Unity -batchmode -projectPath . -executeMethod BouquetCapture.Run \
-  -outputDir /tmp/spin -size 900 -frames 90 -spin 1 -hideDials 1 -radius 4.4
-```
 
 ## Layout
 
