@@ -184,7 +184,7 @@ public static class BouquetGeometry
             for (int i = 0; i < plan.Count; i++)
             {
                 Stalk stalk = plan[i];
-                Vector3 push = WithoutShrinking(OverlapWithHeads(plan, i, stalk), stalk.target);
+                Vector3 push = WithoutSinking(OverlapWithHeads(plan, i, stalk), stalk.target);
                 if (push.sqrMagnitude > 1e-8f)
                 {
                     plan[i] = GrowStalk(settings, palette, bind, stalk.index, stalk.role, stalk.target + push, stalk.growth);
@@ -237,10 +237,12 @@ public static class BouquetGeometry
         return push;
     }
 
-    // sliding a stalk back toward the tie would bury its head in the bundle, so only
-    // the sideways and outward part of a push is kept
-    private static Vector3 WithoutShrinking(Vector3 push, Vector3 target)
+    // sliding a stalk back toward the tie would bury its head in the bundle, and
+    // pushing it down lays it flat across the ribbon, so only the sideways, outward
+    // and upward part of a push is kept
+    private static Vector3 WithoutSinking(Vector3 push, Vector3 target)
     {
+        push.y = Mathf.Max(push.y, 0.0f);
         Vector3 reach = target.normalized;
         return push - reach * Mathf.Min(0.0f, Vector3.Dot(push, reach));
     }
