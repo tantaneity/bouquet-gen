@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// one head, drawn. blooms turn outward from the bundle the way cut flowers do, so
-// the far side of the bouquet shows the backs of its heads and their calyx
 public static class BouquetFlora
 {
     internal const float LeafInk = 0.85f;

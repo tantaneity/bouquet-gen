@@ -30,8 +30,6 @@ public sealed class BouquetSettings
     [Range(0.02f, 0.3f)] public float headScale = 0.095f;
     [Range(0.0f, 0.4f)] public float colourVariation = 0.24f;
 
-    // widths are fractions of screen height, so a stroke stays the same weight
-    // at any distance and any capture resolution
     [Header("Line")]
     [Range(0.001f, 0.02f)] public float stemWidth = 0.0027f;
     [Range(0.0002f, 0.004f)] public float detailWidth = 0.0008f;
@@ -43,8 +41,6 @@ public sealed class BouquetSettings
         return (BouquetSettings)MemberwiseClone();
     }
 
-    // the fields a dial drives. they chase the dial instead of jumping to it, which
-    // is how the bouquet opens and stretches in the reference
     public bool EaseToward(BouquetSettings target, float blend)
     {
         bool isMoving = false;

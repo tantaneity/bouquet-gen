@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// drag a handle to reshape the bouquet, drag anywhere else to turn it
 [ExecuteAlways]
 [RequireComponent(typeof(Camera))]
 public sealed class BouquetController : MonoBehaviour

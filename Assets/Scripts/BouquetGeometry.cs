@@ -16,8 +16,6 @@ public static class BouquetGeometry
                 BouquetHash.Unit(stalk.index, 40, settings.seed),
                 BouquetHash.Unit(stalk.index, 41, settings.seed), settings.colourVariation * 0.5f);
 
-            // a stem outline that goes near black turns the bundle into spaghetti,
-            // so the line sinks most of the way into the stem's own green
             mesh.SetInk(palette.Line(stemColour, 0.74f));
 
             float width = settings.stemWidth * stalk.stemWidth;

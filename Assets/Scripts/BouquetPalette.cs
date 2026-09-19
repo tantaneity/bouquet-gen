@@ -20,8 +20,6 @@ public struct BouquetPalette
         return index <= 0 ? bloomA : (index == 1 ? bloomB : bloomC);
     }
 
-    // inner petals lift a little, blade greens drop: a value move, not a wash
-    // toward grey, which is what kills a limited palette
     public Color Shift(Color color, float amount)
     {
         Color.RGBToHSV(color, out float h, out float s, out float v);
@@ -39,16 +37,10 @@ public struct BouquetPalette
         return Color.HSVToRGB(h, s, v);
     }
 
-    // a line that keeps some of its own fill reads as drawn; one shared near black
-    // line around everything reads as comic outline. blend 0 is pure ink, 1 is a
-    // deep version of the fill itself
     public Color Line(Color fill, float blend)
     {
         Color.RGBToHSV(fill, out float h, out float s, out float v);
 
-        // two pulls at once. a light fill can be darkened freely into a line; a dark
-        // one cannot, or the line goes black, yet it still needs a guaranteed gap in
-        // value or the flower merges into one mass
         float drop = Mathf.Lerp(0.62f, 0.34f, v);
         float target = Mathf.Max(Mathf.Min(v * drop, v - 0.16f), 0.05f);
         float keep = Mathf.Lerp(0.22f, 0.0f, v);
@@ -91,9 +83,6 @@ public struct BouquetPalette
         return new Color(((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f, (hex & 0xFF) / 255.0f, 1.0f);
     }
 
-    // eyedropped off the reference frames, then deepened on purpose: blooms gain
-    // saturation and lose a little value, foliage goes markedly darker, and ink
-    // is a very dark desaturated green rather than black
     public static BouquetPalette Preset(int index)
     {
         switch (Mathf.Clamp(index, 0, 3))

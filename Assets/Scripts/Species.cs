@@ -30,7 +30,6 @@ public static class SpeciesTraits
         }
     }
 
-    // how far a spray's leaves reach sideways from its rib, in head sizes
     public static float SprayRadius(this Species species)
     {
         switch (species)

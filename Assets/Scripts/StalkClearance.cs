@@ -7,9 +7,6 @@ internal static class StalkClearance
     private const int ClearancePasses = 4;
     private const float HeadClearance = 1.05f;
 
-    // every stalk is a capsule running on from its tip (a bloom's is just a ball).
-    // where one overlaps a bloom head its target is walked out of the ball, so leaves
-    // lie beside the petals instead of through them. of two heads the smaller gives way
     public static void Resolve(List<Stalk> plan, Func<Stalk, Vector3, Stalk> regrow)
     {
         for (int pass = 0; pass < ClearancePasses; pass++)
@@ -70,9 +67,6 @@ internal static class StalkClearance
         return push;
     }
 
-    // sliding a stalk back toward the tie would bury its head in the bundle, and
-    // pushing it down lays it flat across the ribbon, so only the sideways, outward
-    // and upward part of a push is kept
     private static Vector3 WithoutSinking(Vector3 push, Vector3 target)
     {
         push.y = Mathf.Max(push.y, 0.0f);

@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// the drawing primitives. everything the bouquet is made of comes from here, and
-// nothing here knows about composition
 public static class BouquetShapes
 {
     public const float GoldenAngle = 2.39996f;
@@ -14,8 +12,6 @@ public static class BouquetShapes
     private const float BladeFold = 0.7f;
     private const int FrillStepsPerTooth = 4;
 
-    // a petal is fat in the middle and closes at both ends, which reads as drawn;
-    // an ellipse reads as a mathematical blob
     public static Vector2[] PetalRim(float length, float width, float tip, float skew)
     {
         List<Vector2> rim = new List<Vector2>(PetalSteps * 2);
@@ -35,7 +31,6 @@ public static class BouquetShapes
         return rim.ToArray();
     }
 
-    // a fan that opens from a narrow claw into a toothed, wavering edge
     public static Vector2[] FrillRim(float length, float width, int teeth, float jag, int salt)
     {
         const int sideSteps = 3;
@@ -71,8 +66,6 @@ public static class BouquetShapes
         return new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius);
     }
 
-    // Mathf.Sin(Mathf.PI) lands a hair below zero, and Pow of a negative base with a
-    // fractional exponent is NaN, so every petal tip poisoned the mesh bounds
     private static float Shoulder(float width, float t, float tip)
     {
         return width * Mathf.Pow(Mathf.Max(Mathf.Sin(Mathf.PI * t), 0.0f), tip);
@@ -107,8 +100,6 @@ public static class BouquetShapes
         return new Vector2(c * p.x - s * p.y, s * p.x + c * p.y);
     }
 
-    // a flat shape that always faces the viewer: this is what keeps a flower
-    // reading as an illustration instead of a disc seen at an angle
     public static void AddBillboardShape(MeshBuffer mesh, Vector3 anchor, Vector2 centre, IReadOnlyList<Vector2> rim,
         Color fill, float outlineWeight, float depthBias)
     {
@@ -145,9 +136,6 @@ public static class BouquetShapes
         }
     }
 
-    // an ink stroke drawn inside a billboard shape. both rails sit on the same
-    // offset and the shader pushes them apart in pixels, so a vein keeps its
-    // weight whatever the flower is doing
     public static void AddBillboardLine(MeshBuffer mesh, Vector3 anchor, IReadOnlyList<Vector2> path,
         Color ink, float halfWidth, float depthBias)
     {
@@ -228,8 +216,6 @@ public static class BouquetShapes
         AddBillboardShape(mesh, anchor, Vector2.zero, CircleRim(radius, DiscSteps, 1.0f), fill, outlineWeight, depthBias);
     }
 
-    // a screen facing ribbon rather than a tube: at this line weight the two are
-    // indistinguishable, and the ribbon keeps its width constant in pixels
     public static void AddRibbon(MeshBuffer mesh, IReadOnlyList<Vector3> points, Color fill, float halfWidth,
         float outlineWeight, float depthBias)
     {
@@ -277,8 +263,6 @@ public static class BouquetShapes
         AddRibbon(mesh, CubicPath(a, b, c, d, RibbonSteps), fill, halfWidth, outlineWeight, 0.0f);
     }
 
-    // a long leaf built as a curled strip rather than a flat card: a flat one seen
-    // exactly edge on loses its width and breaks into a dashed hairline
     public static void AddBlade(MeshBuffer mesh, Matrix4x4 frame, float length, float width, float bend, float curl,
         Color fill, float outlineWeight, int steps)
     {
@@ -312,8 +296,6 @@ public static class BouquetShapes
         return new Vector3(bend * t * t, length * t, curl * Mathf.Sin(Mathf.PI * t));
     }
 
-    // a leafy spray is laid out along its stem, so local y runs up the axis and the
-    // card faces whichever way it is told, twisted about the stem
     public static Matrix4x4 SprayFrame(Vector3 origin, Vector3 axis, Vector3 facing, float twist)
     {
         Vector3 up = axis.normalized;

@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// the band round the bundle, its knot and the two tails hanging off it
 internal static class RibbonWrap
 {
     private const int BandSteps = 22;

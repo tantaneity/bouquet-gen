@@ -30,9 +30,6 @@ internal struct Stalk
     public float growth;
 }
 
-// composition. a florist works with a face, a few dominant blooms on it, greens
-// on the shoulders and tall thin things behind, which is not what a ring of
-// evenly spaced stems produces
 internal static class BouquetPlan
 {
     private const int RoleCount = 6;
@@ -54,11 +51,8 @@ internal static class BouquetPlan
         public int countHigh;
     }
 
-    // tips are aimed at a place in the bouquet rather than derived from an angle and
-    // a length, so the shape is a decision instead of an outcome
     private static readonly Band[] Bands =
     {
-        //                          az centre  spread   radius lo/hi   height lo/hi   scale lo/hi    depth  stem   count
         new Band { azimuthCentre =   0.0f, azimuthSpread =   0.0f, radiusLow = 0.00f, radiusHigh = 0.00f, heightLow = 0.00f, heightHigh = 0.00f, scaleLow = 1.30f, scaleHigh = 1.75f, depth =  0.00f, stemWidth = 1.00f, countLow = 3, countHigh = 5 },
         new Band { azimuthCentre =   0.0f, azimuthSpread = 300.0f, radiusLow = 0.30f, radiusHigh = 0.56f, heightLow = 0.34f, heightHigh = 0.62f, scaleLow = 0.72f, scaleHigh = 1.02f, depth = -0.02f, stemWidth = 0.88f, countLow = 5, countHigh = 8 },
         new Band { azimuthCentre =   0.0f, azimuthSpread = 360.0f, radiusLow = 0.10f, radiusHigh = 0.40f, heightLow = 0.20f, heightHigh = 0.50f, scaleLow = 0.30f, scaleHigh = 0.50f, depth = -0.30f, stemWidth = 0.58f, countLow = 6, countHigh = 12 },
@@ -77,8 +71,6 @@ internal static class BouquetPlan
         Species.LongBlade, Species.Eucalyptus, Species.LeafSprig, Species.LongBlade
     };
 
-    // a loose asymmetric arc, not a ring. offsets are lateral, height, depth, scaled
-    // by stem length so the dial still moves the whole bouquet
     private static readonly Vector3 TowardViewer = Vector3.back;
 
     private static readonly Vector3[] DominantTargets =
@@ -145,9 +137,6 @@ internal static class BouquetPlan
         public float growth;
     }
 
-    // every slot up to the band's ceiling keeps its index whatever the density, so
-    // a density change grows or shrinks the last stems instead of reshuffling the
-    // species of everything that comes after them
     private static float Quota(Band band, float density)
     {
         return Mathf.Lerp(band.countLow, band.countHigh, density);
@@ -188,8 +177,6 @@ internal static class BouquetPlan
              + TowardViewer * band.depth * settings.depthSpread;
     }
 
-    // filler is connective tissue: it goes where two major heads leave a hole, set
-    // back so it reads behind them, not scattered on its own ring
     private static void AddConnectors(List<Stalk> plan, BouquetSettings settings, BouquetPalette palette,
         Vector3 bind, List<GrownTip> bloomTips, int index)
     {
@@ -234,9 +221,6 @@ internal static class BouquetPlan
         Vector3 targetTip = bind + target;
         Vector3 heading = Vector3.Normalize(targetTip - bind);
 
-        // a sprig head keeps climbing past the stem, so the stem stops short of the
-        // place the silhouette is supposed to reach. a low target cannot give up more
-        // than part of its stem, or the tip sinks into the tie and the spray points sideways
         float reserve = Mathf.Min(species.TipReserve() * headSize, target.magnitude * MaxReserveShare);
         Vector3 tip = targetTip - heading * reserve;
 

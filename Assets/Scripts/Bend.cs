@@ -1,7 +1,5 @@
 using UnityEngine;
 
-// a card bowed into a shallow paraboloid around a pivot. the rim barely moves, but
-// the normals turn across the surface and that is what the light reads as form
 public readonly struct Bend
 {
     private readonly Vector2 pivot;

@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// petalled heads, built in the head frame where z is the face
 internal static class BloomHeads
 {
     private const int DahliaRings = 5;
@@ -98,8 +97,6 @@ internal static class BloomHeads
         }
     }
 
-    // the green collar under the head. from the front the petals hide it, from the
-    // side and behind it is what tells a flower's back from its face
     private static void Calyx(MeshBuffer mesh, Matrix4x4 head, float size, float roll, BouquetPalette palette, int salt)
     {
         Color sepal = palette.Shift(palette.leaf, 0.04f);
@@ -132,10 +129,8 @@ internal static class BloomHeads
         mesh.SetInk(palette.Line(bloom, 0.48f));
         PetalRing(mesh, head, middle, palette.Shift(bloom, 0.06f), Outline.Contour);
         PetalRing(mesh, head, inner, palette.Shift(bloom, 0.13f), Outline.Contour);
-
     }
 
-    // the flat wide open flower the reference leans on for its big shapes
     internal static void OpenBloom(MeshBuffer mesh, Matrix4x4 head, float size, float roll, Color bloom, BouquetPalette palette,
         float detailWidth, float j0, float j1)
     {
@@ -152,7 +147,6 @@ internal static class BloomHeads
         float centreLift = BouquetShapes.LayerStep * 4.0f;
         HeadDisc(mesh, head, size * 0.24f, centreLift, inner, Outline.Contour);
 
-        // stamens are strokes, not filled dots: filled ink pips read as black holes
         Stamens(mesh, head, new StamenSpec(7 + Mathf.RoundToInt(j1 * 4.0f), size * 0.08f, size * 0.21f, centreLift + VeinLift, 0.0f, true),
             palette.Line(inner, 0.40f), detailWidth * 0.8f);
     }
@@ -168,8 +162,6 @@ internal static class BloomHeads
         PetalRing(mesh, head, ring, bloom, Outline.Silhouette);
         PetalVeins(mesh, head, ring, palette.Line(bloom, 0.60f), detailWidth);
 
-        // the dark eye is the one place a near black mass belongs, but it was far
-        // too wide and read as a hole punched through the flower
         Color eye = palette.Shift(bloom, -0.66f);
         mesh.SetInk(palette.Line(eye, 0.70f));
         float eyeLift = BouquetShapes.LayerStep * 4.0f;
@@ -179,8 +171,6 @@ internal static class BloomHeads
             palette.Line(eye, 0.45f), detailWidth * 0.85f);
     }
 
-    // a pompon: rings of broad pointed petals, each one folded down its middle, closing
-    // up towards a dark stippled eye
     internal static void Dahlia(MeshBuffer mesh, Matrix4x4 head, float size, float roll, Color bloom, BouquetPalette palette,
         float detailWidth, float j0, float j1)
     {
@@ -208,8 +198,6 @@ internal static class BloomHeads
             palette.Shift(bloom, 0.10f), detailWidth * 0.8f);
     }
 
-    // ruffled, toothed petals cupped into a ball, sitting in a long green tube with
-    // its sepals pointing up. the tube is what the reference shows from below
     internal static void Carnation(MeshBuffer mesh, Matrix4x4 head, float size, float roll, Color bloom, BouquetPalette palette,
         float detailWidth, float j0, float j1)
     {
@@ -232,7 +220,6 @@ internal static class BloomHeads
         PetalVeins(mesh, head, middle, palette.Line(bloom, 0.60f), detailWidth, 0.25f, 0.65f);
     }
 
-    // two crossed cards so the tube keeps a width from any side
     private static void CarnationTube(MeshBuffer mesh, Matrix4x4 head, float size, BouquetPalette palette)
     {
         Color tube = palette.Shift(palette.leaf, 0.08f);

@@ -2,8 +2,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-// there is no mouse in batch mode, so the drag path is checked by round trip:
-// project a handle to the screen, feed that point back in, expect the value out
 public static class DialSelfCheck
 {
     private const string ScenePath = "Assets/Scenes/Bouquet.unity";

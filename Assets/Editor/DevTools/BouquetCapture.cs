@@ -120,8 +120,6 @@ public static class BouquetCapture
         EditorApplication.Exit(0);
     }
 
-    // dial values run 0..1 along their track; passing them straight through is how
-    // the gizmo gets verified headlessly, where there is no mouse to drag with
     private static bool ApplyDials(BouquetController controller, string values)
     {
         if (string.IsNullOrEmpty(values))
@@ -168,8 +166,6 @@ public static class BouquetCapture
         return parsed;
     }
 
-    // the starting dials plus every ';'-separated key after them. one key means
-    // nothing moves, which keeps plain stills and spins on the old path
     private static List<float[]> ParseDialKeys(BouquetController controller, string values)
     {
         List<float[]> keys = new List<float[]> { ReadDialValues(controller) };
@@ -203,9 +199,6 @@ public static class BouquetCapture
         return values;
     }
 
-    // each leg between two keys gets an equal share of the clip. the handle travels
-    // the way a hand drags it, over the first part of its leg, and the bouquet catches
-    // up through the same easing play mode uses
     private static void SlideDials(BouquetController controller, List<float[]> keys, int frame, int frameCount)
     {
         int legs = keys.Count - 1;
@@ -222,8 +215,6 @@ public static class BouquetCapture
         controller.RetargetDials();
     }
 
-    // settings carry a dozen knobs and iterating on them from the CLI is the whole
-    // workflow, so the names are resolved against the fields instead of listed twice
     private static bool ApplyOverrides(BouquetBuilder builder, string overrides)
     {
         if (string.IsNullOrEmpty(overrides))

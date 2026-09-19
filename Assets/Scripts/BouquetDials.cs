@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// a dial is a fixed arc track in world space with a bead riding it, which is how
-// the reference does it: the track passes through the handle rather than ending there,
-// and the rings at the tie read as circles in perspective because they are
 [Serializable]
 public struct Dial
 {
@@ -40,8 +37,6 @@ public static class BouquetDialSet
 
     private static readonly Color TrackInk = new Color(0.66f, 0.68f, 0.70f, 1.0f);
 
-    // the top arc, the two side arcs and the ground ring are laid out after the
-    // reference: side arcs sit on the same sphere as the top one, turned towards the viewer
     public static Dial[] Defaults()
     {
         return new[]
@@ -92,7 +87,6 @@ public static class BouquetDialSet
         }
     }
 
-    // the loose loop around the tie carries no handle, it only marks where the stems meet
     private static void AddTieRing(MeshBuffer mesh, Vector3[] points, Vector3 tie, Color track)
     {
         for (int s = 0; s <= TrackSteps; s++)
@@ -129,8 +123,6 @@ public static class BouquetDialSet
         return best;
     }
 
-    // the pointer ray is dropped onto the dial's own plane, so dragging follows the
-    // ring in perspective instead of sliding along the screen
     public static float ValueUnderPointer(Dial dial, Camera camera, Vector2 pointer)
     {
         Quaternion plane = dial.Plane;
@@ -166,12 +158,8 @@ public static class BouquetDialSet
         builder.palette = Resolve(dials, builder.settings);
     }
 
-    // writes the dial-driven fields into target and returns the palette they pick,
-    // so the controller can ease towards them instead of jumping
     public static float Resolve(Dial[] dials, BouquetSettings target)
     {
-        // density drives every quota plus how much the layers separate, so the
-        // silhouette stays put while the bouquet actually fills in
         target.density = dials[1].value;
         target.depthSpread = Mathf.Lerp(0.34f, 0.58f, dials[1].value);
         target.colourVariation = Mathf.Lerp(0.18f, 0.30f, dials[1].value);

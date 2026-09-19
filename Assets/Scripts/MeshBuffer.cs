@@ -9,8 +9,6 @@ public enum StrokeKind
     Billboard = 2
 }
 
-// line hierarchy, the thing that decides whether this reads as ink drawing or as
-// cartoon outline around every mesh
 public static class Outline
 {
     public const float Silhouette = 1.00f;
@@ -60,8 +58,6 @@ public sealed class MeshBuffer
 
     public int VertexCount => positions.Count;
 
-    // the line colour belongs to the element, not to the scene: one uniform ink
-    // forces a stem to wear the same near black line as a peony
     public void SetInk(Color colour)
     {
         ink = colour;
@@ -72,9 +68,6 @@ public sealed class MeshBuffer
         facing = faceNormal;
     }
 
-    // the project renders linear, and every palette value here was eyedropped off
-    // the reference as sRGB, so the conversion happens once, here, or the whole
-    // bouquet comes out pale
     public void AddVertex(Vector3 position, Vector3 expansion, Vector4 tangent, Color color,
         StrokeKind kind, float width, float outlineWeight, float depthBias, Vector4 shading = default)
     {

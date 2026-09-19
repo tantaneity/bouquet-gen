@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// leaves and filler that run on past the stem tip, built in the spray frame where y is the rib
 internal static class LeafSprays
 {
     private const int GypsophilaArms = 7;
@@ -30,8 +29,6 @@ internal static class LeafSprays
     private const int SprigLeaves = 9;
     private const float LeafBowl = 0.35f;
 
-    // whorls of round buds around a rib that runs out past the last of them, lilac
-    // whatever the palette, lighter at the base, with two bracts forking under it
     internal static void Lavender(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, Color bloom,
         BouquetPalette palette, float j0)
     {
@@ -86,8 +83,6 @@ internal static class LeafSprays
         }
     }
 
-    // a cloud, not an umbel: arms fork into twigs and every twig ends in a knot of
-    // white florets ringed in ink
     internal static void Gypsophila(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette, float j0)
     {
         float reach = size * (1.5f + j0 * 0.5f);
@@ -133,15 +128,12 @@ internal static class LeafSprays
         }
     }
 
-    // sprays turn outward like the heads do, with a pull towards the front so the
-    // bouquet's face shows leaves flat rather than as edges
     private static Matrix4x4 SprayFrame(Vector3 tip, Vector3 axis, float roll)
     {
         Vector3 facing = new Vector3(tip.x, 0.0f, tip.z) * SprayOutward + Vector3.back * SprayViewerBias;
         return BouquetShapes.SprayFrame(tip, axis, facing, Mathf.Sin(roll) * SprayTwist);
     }
 
-    // round leaves in opposite pairs clasping the stem, overlapping up the spray
     internal static void Eucalyptus(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette,
         float detailWidth, float j0)
     {
@@ -175,8 +167,6 @@ internal static class LeafSprays
             sage, Outline.Silhouette, EucalyptusPairs * 2 * BouquetShapes.LayerStep * 0.5f, Bend.Bowl(crown, LeafBowl / crownRadius));
     }
 
-    // a feather of leaflets packed tight and swept up along the rib. half the ferns
-    // are broad herringbone plumes, the rest narrow combs, both as in the reference
     internal static void Fern(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette,
         float detailWidth, float j0)
     {
@@ -213,7 +203,6 @@ internal static class LeafSprays
         }
     }
 
-    // one long decorative leaf, the element that breaks up a bouquet full of round shapes
     internal static void LongBlade(MeshBuffer mesh, Vector3 tip, Vector3 axis, float size, float roll, BouquetPalette palette,
         float detailWidth, float j0, float j1)
     {
