@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -12,6 +13,8 @@ public static class BouquetCapture
     private const int DefaultSize = 1080;
     private const int AntiAliasingSamples = 4;
     private const int DepthBits = 24;
+    private const int DefaultFramesPerSecond = 30;
+    private const float DragShare = 0.7f;
 
     public static void Run()
     {
@@ -29,6 +32,8 @@ public static class BouquetCapture
         float pitch = GetFloatArgument("-pitch", 12.0f);
         bool spin = GetIntArgument("-spin", 0) != 0;
         float radius = GetFloatArgument("-radius", 0.0f);
+        float yawTo = GetFloatArgument("-yawTo", yaw);
+        float frameSeconds = 1.0f / GetIntArgument("-fps", DefaultFramesPerSecond);
 
         Directory.CreateDirectory(outputDirectory);
         EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -49,6 +54,13 @@ public static class BouquetCapture
         }
 
         if (!ApplyDials(controller, GetArgument("-dials")))
+        {
+            EditorApplication.Exit(1);
+            return;
+        }
+
+        List<float[]> dialKeys = ParseDialKeys(controller, GetArgument("-dialsTo"));
+        if (dialKeys == null)
         {
             EditorApplication.Exit(1);
             return;
@@ -77,9 +89,18 @@ public static class BouquetCapture
 
         for (int i = 0; i < frameCount; i++)
         {
-            controller.yaw = spin && frameCount > 1 ? yaw + 360.0f * i / frameCount : yaw;
+            float progress = frameCount > 1 ? i / (float)(frameCount - 1) : 0.0f;
+            controller.yaw = spin && frameCount > 1 ? yaw + 360.0f * i / frameCount : Mathf.Lerp(yaw, yawTo, progress);
             controller.pitch = pitch;
             controller.PlaceCamera();
+
+            if (dialKeys.Count > 1)
+            {
+                SlideDials(controller, dialKeys, i, frameCount);
+                controller.EaseBouquet(frameSeconds);
+                camera.backgroundColor = BouquetPalette.At(builder.palette).background;
+            }
+
             controller.RebuildDials();
 
             camera.Render();
@@ -108,21 +129,97 @@ public static class BouquetCapture
             return true;
         }
 
-        string[] parts = values.Split(',');
-        if (parts.Length != controller.dials.Length)
+        float[] parsed = ParseDials(controller, values);
+        if (parsed == null)
         {
-            Debug.LogError($"BOUQUET_CAPTURE: -dials needs {controller.dials.Length} values, got {parts.Length}");
             return false;
         }
 
-        for (int i = 0; i < parts.Length; i++)
+        for (int i = 0; i < parsed.Length; i++)
         {
-            controller.dials[i].value = Mathf.Clamp01(float.Parse(parts[i].Trim(), CultureInfo.InvariantCulture));
+            controller.dials[i].value = parsed[i];
         }
 
         BouquetDialSet.Apply(controller.dials, controller.builder);
         Debug.Log($"BOUQUET_CAPTURE: dials {values}");
         return true;
+    }
+
+    private static float[] ParseDials(BouquetController controller, string values)
+    {
+        if (string.IsNullOrEmpty(values))
+        {
+            return null;
+        }
+
+        string[] parts = values.Split(',');
+        if (parts.Length != controller.dials.Length)
+        {
+            Debug.LogError($"BOUQUET_CAPTURE: dials need {controller.dials.Length} values, got {parts.Length}");
+            return null;
+        }
+
+        float[] parsed = new float[parts.Length];
+        for (int i = 0; i < parts.Length; i++)
+        {
+            parsed[i] = Mathf.Clamp01(float.Parse(parts[i].Trim(), CultureInfo.InvariantCulture));
+        }
+
+        return parsed;
+    }
+
+    // the starting dials plus every ';'-separated key after them. one key means
+    // nothing moves, which keeps plain stills and spins on the old path
+    private static List<float[]> ParseDialKeys(BouquetController controller, string values)
+    {
+        List<float[]> keys = new List<float[]> { ReadDialValues(controller) };
+        if (string.IsNullOrEmpty(values))
+        {
+            return keys;
+        }
+
+        foreach (string key in values.Split(';'))
+        {
+            float[] parsed = ParseDials(controller, key);
+            if (parsed == null)
+            {
+                return null;
+            }
+
+            keys.Add(parsed);
+        }
+
+        return keys;
+    }
+
+    private static float[] ReadDialValues(BouquetController controller)
+    {
+        float[] values = new float[controller.dials.Length];
+        for (int i = 0; i < values.Length; i++)
+        {
+            values[i] = controller.dials[i].value;
+        }
+
+        return values;
+    }
+
+    // each leg between two keys gets an equal share of the clip. the handle travels
+    // the way a hand drags it, over the first part of its leg, and the bouquet catches
+    // up through the same easing play mode uses
+    private static void SlideDials(BouquetController controller, List<float[]> keys, int frame, int frameCount)
+    {
+        int legs = keys.Count - 1;
+        int framesPerLeg = Mathf.Max(frameCount / legs, 2);
+        int leg = Mathf.Min(frame / framesPerLeg, legs - 1);
+        float progress = Mathf.Clamp01((frame - leg * framesPerLeg) / (float)(framesPerLeg - 1));
+        float drag = Mathf.SmoothStep(0.0f, 1.0f, Mathf.Clamp01(progress / DragShare));
+
+        for (int i = 0; i < controller.dials.Length; i++)
+        {
+            controller.dials[i].value = Mathf.Lerp(keys[leg][i], keys[leg + 1][i], drag);
+        }
+
+        controller.RetargetDials();
     }
 
     // settings carry a dozen knobs and iterating on them from the CLI is the whole

@@ -50,7 +50,7 @@ public sealed class BouquetController : MonoBehaviour
             return;
         }
 
-        EaseBouquet();
+        EaseBouquet(Time.deltaTime);
 
         Mouse mouse = Mouse.current;
         if (mouse == null)
@@ -127,19 +127,24 @@ public sealed class BouquetController : MonoBehaviour
             return;
         }
 
+        RetargetDials();
+    }
+
+    public void RetargetDials()
+    {
         easeTarget = builder.settings.Clone();
         paletteTarget = BouquetDialSet.Resolve(dials, easeTarget);
         RebuildDials();
     }
 
-    private void EaseBouquet()
+    public void EaseBouquet(float deltaTime)
     {
         if (easeTarget == null || builder == null)
         {
             return;
         }
 
-        float blend = 1.0f - Mathf.Exp(-Time.deltaTime * EaseSharpness);
+        float blend = 1.0f - Mathf.Exp(-deltaTime * EaseSharpness);
         bool isMoving = builder.settings.EaseToward(easeTarget, blend);
         builder.palette = BouquetSettings.Ease(builder.palette, paletteTarget, blend, ref isMoving);
 
